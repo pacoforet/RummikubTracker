@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#121212">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Rummikub Tracker</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="apple-touch-icon" href="icon.png"> 
+</head>
+<body>
+
+    <!-- APP HEADER -->
+    <header class="app-header">
+        <div id="header-title">Rummikub Tracker</div>
+        <button id="history-btn" class="icon-btn hidden" onclick="app.toggleHistory()">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"></path>
+            </svg>
+        </button>
+    </header>
+
+    <main id="main-container">
+        
+        <!-- VIEW: SETUP -->
+        <section id="view-setup" class="view active">
+            <div class="card">
+                <h2>Game Setup</h2>
+                <div class="input-group">
+                    <label>Target Score (Optional)</label>
+                    <input type="number" id="target-score" placeholder="e.g. 200" pattern="\d*">
+                </div>
+                
+                <div class="input-group">
+                    <label>Scoring Rule</label>
+                    <div class="segmented-control">
+                        <button class="segment active" data-value="standard" onclick="app.setRule('standard')">Standard</button>
+                        <button class="segment" data-value="simple" onclick="app.setRule('simple')">Simple</button>
+                    </div>
+                    <p class="helper-text" id="rule-desc">Winner gets sum of losers. Losers get negative points.</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2>Players</h2>
+                    <span id="player-count">2/4</span>
+                </div>
+                <div id="player-setup-list">
+                    <!-- JS will populate -->
+                </div>
+                <button class="btn btn-outline" id="add-player-btn" onclick="app.addPlayer()">+ Add Player</button>
+            </div>
+
+            <button class="btn btn-primary btn-large sticky-bottom" onclick="app.startGame()">Start Game</button>
+        </section>
+
+
+        <!-- VIEW: SCOREBOARD -->
+        <section id="view-scoreboard" class="view">
+            <div class="stats-bar">
+                <div class="stat">
+                    <span class="label">ROUND</span>
+                    <span class="value" id="round-display">1</span>
+                </div>
+                <div class="stat" id="target-stat">
+                    <span class="label">GOAL</span>
+                    <span class="value" id="goal-display">-</span>
+                </div>
+                <button class="btn-small btn-danger" onclick="app.confirmEndGame()">End</button>
+            </div>
+
+            <div id="leaderboard" class="leaderboard-grid">
+                <!-- JS will populate scores -->
+            </div>
+
+            <div class="fab-container">
+                <button class="btn btn-primary btn-fab" onclick="app.openRoundEntry()">
+                    + Record Round
+                </button>
+            </div>
+        </section>
+
+
+        <!-- MODAL: ROUND ENTRY -->
+        <div id="modal-round" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Round Results</h3>
+                    <button class="close-btn" onclick="app.closeRoundEntry()">&times;</button>
+                </div>
+                
+                <p class="instruction-text" id="round-instruction">Select the winner.</p>
+
+                <div id="round-entry-list">
+                    <!-- JS will populate inputs -->
+                </div>
+
+                <div class="modal-footer">
+                    <button class="btn btn-primary btn-large" onclick="app.submitRound()">Submit Round</button>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- MODAL: HISTORY -->
+        <div id="modal-history" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Game History</h3>
+                    <button class="close-btn" onclick="app.toggleHistory()">&times;</button>
+                </div>
+                <div id="history-list" class="history-list">
+                    <!-- JS will populate -->
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
