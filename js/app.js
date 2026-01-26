@@ -121,11 +121,11 @@ const app = {
             
             const card = document.createElement('div');
             card.className = `score-card ${isLeader ? 'leader' : ''}`;
-            card.innerHTML = "
-                <div class=\"player-avatar\">${p.name.charAt(0).toUpperCase()}</div>
-                <div class=\"player-name\">${p.name}</div>
-                <div class=\"player-score\">${p.score}</div>
-            ";
+            card.innerHTML = `
+                <div class="player-avatar">${p.name.charAt(0).toUpperCase()}</div>
+                <div class="player-name">${p.name}</div>
+                <div class="player-score">${p.score}</div>
+            `;
             grid.appendChild(card);
         });
     },
@@ -170,10 +170,10 @@ const app = {
                 controls = `<input type="number" id="input-${p.id}" class="score-input" placeholder="+/-" pattern="[0-9-]*">`;
             }
 
-            div.innerHTML = "
-                <span style=\"font-weight:600; font-size:14px;">${p.name}</span>
-                <div style=\"display:flex; align-items:center; gap:10px;">${controls}</div>
-            ";
+            div.innerHTML = `
+                <span style="font-weight:600; font-size:14px;">${p.name}</span>
+                <div style="display:flex; align-items:center; gap:10px;">${controls}</div>
+            `;
             list.appendChild(div);
         });
     },
@@ -264,10 +264,10 @@ const app = {
                 badges += `<div class="score-badge ${cls}">${pName} ${c.points > 0 ? '+' : ''}${c.points}</div>`;
             });
 
-            div.innerHTML = "
-                <div class=\"history-round-num\">Round ${actualRoundNum}</div>
-                <div class=\"history-badges\">${badges}</div>
-            ";
+            div.innerHTML = `
+                <div class="history-round-num">Round ${actualRoundNum}</div>
+                <div class="history-badges">${badges}</div>
+            `;
             list.appendChild(div);
         });
     },
@@ -286,10 +286,10 @@ const app = {
         this.state.players.forEach((p, index) => {
             const div = document.createElement('div');
             div.className = 'player-setup-row';
-            div.innerHTML = "
-                <input type=\"text\" value=\"${p.name}\" oninput=\"app.updatePlayerName(${index}, this.value)">
-                ${this.state.players.length > 2 ? `<button class=\"remove-player\" onclick=\"app.removePlayer(${index})\" >&times;</button>` : ''}
-            ";
+            div.innerHTML = `
+                <input type="text" value="${p.name}" oninput="app.updatePlayerName(${index}, this.value)">
+                ${this.state.players.length > 2 ? `<button class="remove-player" onclick="app.removePlayer(${index})">&times;</button>` : ''}
+            `;
             list.appendChild(div);
         });
     },
