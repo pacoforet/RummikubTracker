@@ -9,8 +9,8 @@ const app = {
     // --- STATE ---
     state: {
         players: [
-            { id: 1, name: "Player 1", score: 0 },
-            { id: 2, name: "Player 2", score: 0 }
+            { id: 1, name: "Jugador 1", score: 0 },
+            { id: 2, name: "Jugador 2", score: 0 }
         ],
         rounds: [],
         settings: {
@@ -44,7 +44,7 @@ const app = {
         const newId = Date.now();
         this.state.players.push({
             id: newId,
-            name: `Player ${this.state.players.length + 1}`,
+            name: `Jugador ${this.state.players.length + 1}`,
             score: 0
         });
         this.renderSetupList();
@@ -74,9 +74,9 @@ const app = {
             el.classList.toggle('active', el.dataset.value === rule);
         });
         const desc = document.getElementById('rule-desc');
-        desc.textContent = rule === 'standard' 
-            ? "Winner gets sum of losers. Losers get negative points."
-            : "Enter raw score change (+/-) for each player manually.";
+        desc.textContent = rule === 'standard'
+            ? "El ganador suma los puntos de los perdedores. Los perdedores restan sus puntos."
+            : "Introduce el cambio de puntuación (+/-) para cada jugador manualmente.";
     },
 
     startGame: function() {
@@ -93,7 +93,7 @@ const app = {
     },
 
     confirmEndGame: function() {
-        if (confirm("Are you sure you want to end this game? History will be cleared.")) {
+        if (confirm("¿Estás seguro de que quieres terminar esta partida? Se borrará el historial.")) {
             this.state.gameActive = false;
             this.state.players.forEach(p => p.score = 0);
             this.state.rounds = [];
@@ -107,9 +107,9 @@ const app = {
         // Stats
         document.getElementById('round-display').textContent = this.state.rounds.length + 1;
         document.getElementById('goal-display').textContent = this.state.settings.targetScore || '-';
-        document.getElementById('header-title').textContent = this.state.settings.targetScore 
-            ? `Target: ${this.state.settings.targetScore}` 
-            : "Rummikub Tracker";
+        document.getElementById('header-title').textContent = this.state.settings.targetScore
+            ? `Meta: ${this.state.settings.targetScore}`
+            : "Rummikub";
 
         // Show history button only in scoreboard
         document.getElementById('history-btn').classList.remove('hidden');
@@ -245,13 +245,13 @@ const app = {
         return `
             <div class="tile-picker">
                 <div class="tile-picker-header">
-                    <span class="tile-total-display"><span id="tile-count-${playerId}">${this.getTileCount(playerId)}</span> tiles = <strong id="tile-total-${playerId}">${this.getTileTotal(playerId)}</strong> pts</span>
-                    <button class="btn-small" onclick="app.clearTiles(${playerId})">Clear</button>
+                    <span class="tile-total-display"><span id="tile-count-${playerId}">${this.getTileCount(playerId)}</span> fichas = <strong id="tile-total-${playerId}">${this.getTileTotal(playerId)}</strong> pts</span>
+                    <button class="btn-small" onclick="app.clearTiles(${playerId})">Limpiar</button>
                 </div>
                 <div class="tile-grid">
                     ${tilesHtml}
                 </div>
-                <button class="btn-text" onclick="app.toggleInputMode(${playerId})">Use number input</button>
+                <button class="btn-text" onclick="app.toggleInputMode(${playerId})">Usar entrada numérica</button>
             </div>
         `;
     },
@@ -265,8 +265,8 @@ const app = {
         this.renderRoundInputs();
 
         const text = this.state.settings.rule === 'standard'
-            ? "Tap the WINNER, then tap tiles for losers."
-            : "Enter the points (+/-) for each player.";
+            ? "Selecciona el GANADOR, luego marca las fichas de los perdedores."
+            : "Introduce los puntos (+/-) para cada jugador.";
         document.getElementById('round-instruction').textContent = text;
     },
 
@@ -291,13 +291,13 @@ const app = {
                 if (isWinner) {
                     controls = `
                         <button class="winner-toggle selected" onclick="app.toggleWinner(${p.id})">
-                            WINNER
+                            GANADOR
                         </button>
                     `;
                 } else {
                     controls = `
                         <button class="winner-toggle" onclick="app.toggleWinner(${p.id})">
-                            Select
+                            Elegir
                         </button>
                     `;
                 }
@@ -309,8 +309,8 @@ const app = {
                     </div>
                     ${!isWinner ? (useManual
                         ? `<div class="manual-input-row">
-                               <input type="number" id="input-${p.id}" class="score-input" placeholder="Points" pattern="\\d*">
-                               <button class="btn-text" onclick="app.toggleInputMode(${p.id})">Use tile grid</button>
+                               <input type="number" id="input-${p.id}" class="score-input" placeholder="Puntos" pattern="\\d*">
+                               <button class="btn-text" onclick="app.toggleInputMode(${p.id})">Usar fichas</button>
                            </div>`
                         : this.renderTileGrid(p.id)
                     ) : ''}
@@ -338,7 +338,7 @@ const app = {
 
         if (this.state.settings.rule === 'standard') {
             if (!this.currentWinnerId) {
-                alert("Please select a winner.");
+                alert("Por favor, selecciona un ganador.");
                 return;
             }
 
@@ -432,10 +432,10 @@ const app = {
     // --- UNDO ---
     undoLastRound: function() {
         if (this.state.rounds.length === 0) {
-            alert("No rounds to undo.");
+            alert("No hay rondas para deshacer.");
             return;
         }
-        if (!confirm("Undo the last round?")) return;
+        if (!confirm("¿Deshacer la última ronda?")) return;
 
         const lastRound = this.state.rounds.pop();
         lastRound.changes.forEach(c => {
@@ -462,7 +462,7 @@ const app = {
         const list = document.getElementById('history-list');
         list.innerHTML = '';
         if (this.state.rounds.length === 0) {
-            list.innerHTML = '<p style="text-align:center; color:var(--text-sec);">No history yet.</p>';
+            list.innerHTML = '<p style="text-align:center; color:var(--text-sec);">Sin historial todavía.</p>';
             return;
         }
 
@@ -481,7 +481,7 @@ const app = {
             });
 
             div.innerHTML = `
-                <div class="history-round-num">Round ${actualRoundNum}</div>
+                <div class="history-round-num">Ronda ${actualRoundNum}</div>
                 <div class="history-badges">${badges}</div>
                 <button class="delete-round-btn" onclick="app.deleteRound(${round.id})">&times;</button>
             `;
@@ -490,7 +490,7 @@ const app = {
     },
 
     deleteRound: function(roundId) {
-        if (!confirm("Delete this round? Scores will be recalculated.")) return;
+        if (!confirm("¿Eliminar esta ronda? Las puntuaciones se recalcularán.")) return;
 
         const roundIndex = this.state.rounds.findIndex(r => r.id === roundId);
         if (roundIndex === -1) return;
@@ -556,7 +556,7 @@ const app = {
                 // Merge logic to avoid crashes if structure changed
                 this.state = { ...this.state, ...parsed };
             } catch(e) {
-                console.error("Save file corrupted");
+                console.error("Archivo de guardado corrupto");
             }
         }
     }

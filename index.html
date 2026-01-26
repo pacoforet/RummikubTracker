@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#121212">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Rummikub Tracker</title>
+    <title>Rummikub - Registro de Puntuación</title>
     <link rel="stylesheet" href="css/styles.css">
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icon.png">
@@ -15,7 +15,7 @@
 
     <!-- APP HEADER -->
     <header class="app-header">
-        <div id="header-title">Rummikub Tracker</div>
+        <div id="header-title">Rummikub</div>
         <button id="history-btn" class="icon-btn hidden" onclick="app.toggleHistory()">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"></path>
@@ -28,34 +28,34 @@
         <!-- VIEW: SETUP -->
         <section id="view-setup" class="view active">
             <div class="card">
-                <h2>Game Setup</h2>
+                <h2>Configuración</h2>
                 <div class="input-group">
-                    <label>Target Score (Optional)</label>
-                    <input type="number" id="target-score" placeholder="e.g. 200" pattern="\d*">
+                    <label>Puntuación Objetivo (Opcional)</label>
+                    <input type="number" id="target-score" placeholder="ej. 200" pattern="\d*">
                 </div>
-                
+
                 <div class="input-group">
-                    <label>Scoring Rule</label>
+                    <label>Regla de Puntuación</label>
                     <div class="segmented-control">
-                        <button class="segment active" data-value="standard" onclick="app.setRule('standard')">Standard</button>
+                        <button class="segment active" data-value="standard" onclick="app.setRule('standard')">Estándar</button>
                         <button class="segment" data-value="simple" onclick="app.setRule('simple')">Simple</button>
                     </div>
-                    <p class="helper-text" id="rule-desc">Winner gets sum of losers. Losers get negative points.</p>
+                    <p class="helper-text" id="rule-desc">El ganador suma los puntos de los perdedores. Los perdedores restan sus puntos.</p>
                 </div>
             </div>
 
             <div class="card">
                 <div class="card-header">
-                    <h2>Players</h2>
+                    <h2>Jugadores</h2>
                     <span id="player-count">2/4</span>
                 </div>
                 <div id="player-setup-list">
                     <!-- JS will populate -->
                 </div>
-                <button class="btn btn-outline" id="add-player-btn" onclick="app.addPlayer()">+ Add Player</button>
+                <button class="btn btn-outline" id="add-player-btn" onclick="app.addPlayer()">+ Añadir Jugador</button>
             </div>
 
-            <button class="btn btn-primary btn-large sticky-bottom" onclick="app.startGame()">Start Game</button>
+            <button class="btn btn-primary btn-large sticky-bottom" onclick="app.startGame()">Iniciar Partida</button>
         </section>
 
 
@@ -63,16 +63,16 @@
         <section id="view-scoreboard" class="view">
             <div class="stats-bar">
                 <div class="stat">
-                    <span class="label">ROUND</span>
+                    <span class="label">RONDA</span>
                     <span class="value" id="round-display">1</span>
                 </div>
                 <div class="stat" id="target-stat">
-                    <span class="label">GOAL</span>
+                    <span class="label">META</span>
                     <span class="value" id="goal-display">-</span>
                 </div>
                 <div class="stats-bar-actions">
-                    <button class="btn-small btn-secondary" onclick="app.undoLastRound()">Undo</button>
-                    <button class="btn-small btn-danger" onclick="app.confirmEndGame()">End</button>
+                    <button class="btn-small btn-secondary" onclick="app.undoLastRound()">Deshacer</button>
+                    <button class="btn-small btn-danger" onclick="app.confirmEndGame()">Fin</button>
                 </div>
             </div>
 
@@ -82,7 +82,7 @@
 
             <div class="fab-container">
                 <button class="btn btn-primary btn-fab" onclick="app.openRoundEntry()">
-                    + Record Round
+                    + Registrar Ronda
                 </button>
             </div>
         </section>
@@ -92,18 +92,18 @@
         <div id="modal-round" class="modal">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h3>Round Results</h3>
+                    <h3>Resultados de la Ronda</h3>
                     <button class="close-btn" onclick="app.closeRoundEntry()">&times;</button>
                 </div>
-                
-                <p class="instruction-text" id="round-instruction">Select the winner.</p>
+
+                <p class="instruction-text" id="round-instruction">Selecciona el ganador.</p>
 
                 <div id="round-entry-list">
                     <!-- JS will populate inputs -->
                 </div>
 
                 <div class="modal-footer">
-                    <button class="btn btn-primary btn-large" onclick="app.submitRound()">Submit Round</button>
+                    <button class="btn btn-primary btn-large" onclick="app.submitRound()">Guardar Ronda</button>
                 </div>
             </div>
         </div>
@@ -113,7 +113,7 @@
         <div id="modal-history" class="modal">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h3>Game History</h3>
+                    <h3>Historial de la Partida</h3>
                     <button class="close-btn" onclick="app.toggleHistory()">&times;</button>
                 </div>
                 <div id="history-list" class="history-list">
@@ -138,18 +138,18 @@
                 </div>
                 <div class="winner-content">
                     <div class="trophy">🏆</div>
-                    <h2 class="winner-title">Winner!</h2>
-                    <div class="winner-name" id="winner-name">Player 1</div>
+                    <h2 class="winner-title">¡Ganador!</h2>
+                    <div class="winner-name" id="winner-name">Jugador 1</div>
                     <div class="winner-score" id="winner-score">200</div>
                     <div class="final-scores">
-                        <h4>Final Scores</h4>
+                        <h4>Puntuaciones Finales</h4>
                         <div id="final-scores-list">
                             <!-- JS will populate -->
                         </div>
                     </div>
                     <div class="winner-actions">
-                        <button class="btn btn-primary" onclick="app.newGameFromWinner()">New Game</button>
-                        <button class="btn btn-outline" onclick="app.closeWinnerModal()">Continue Playing</button>
+                        <button class="btn btn-primary" onclick="app.newGameFromWinner()">Nueva Partida</button>
+                        <button class="btn btn-outline" onclick="app.closeWinnerModal()">Seguir Jugando</button>
                     </div>
                 </div>
             </div>
