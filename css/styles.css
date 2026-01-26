@@ -39,6 +39,7 @@ body {
     background: var(--card-bg);
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
+    padding-top: env(safe-area-inset-top);
 }
 
 #header-title {
