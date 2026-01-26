@@ -8,7 +8,8 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Rummikub Tracker</title>
     <link rel="stylesheet" href="css/styles.css">
-    <link rel="apple-touch-icon" href="icon.png"> 
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon.png">
 </head>
 <body>
 
@@ -69,7 +70,10 @@
                     <span class="label">GOAL</span>
                     <span class="value" id="goal-display">-</span>
                 </div>
-                <button class="btn-small btn-danger" onclick="app.confirmEndGame()">End</button>
+                <div class="stats-bar-actions">
+                    <button class="btn-small btn-secondary" onclick="app.undoLastRound()">Undo</button>
+                    <button class="btn-small btn-danger" onclick="app.confirmEndGame()">End</button>
+                </div>
             </div>
 
             <div id="leaderboard" class="leaderboard-grid">
@@ -114,6 +118,39 @@
                 </div>
                 <div id="history-list" class="history-list">
                     <!-- JS will populate -->
+                </div>
+            </div>
+        </div>
+
+
+        <!-- MODAL: WINNER CELEBRATION -->
+        <div id="modal-winner" class="modal">
+            <div class="modal-content winner-modal">
+                <div class="confetti-container">
+                    <div class="confetti"></div>
+                    <div class="confetti"></div>
+                    <div class="confetti"></div>
+                    <div class="confetti"></div>
+                    <div class="confetti"></div>
+                    <div class="confetti"></div>
+                    <div class="confetti"></div>
+                    <div class="confetti"></div>
+                </div>
+                <div class="winner-content">
+                    <div class="trophy">🏆</div>
+                    <h2 class="winner-title">Winner!</h2>
+                    <div class="winner-name" id="winner-name">Player 1</div>
+                    <div class="winner-score" id="winner-score">200</div>
+                    <div class="final-scores">
+                        <h4>Final Scores</h4>
+                        <div id="final-scores-list">
+                            <!-- JS will populate -->
+                        </div>
+                    </div>
+                    <div class="winner-actions">
+                        <button class="btn btn-primary" onclick="app.newGameFromWinner()">New Game</button>
+                        <button class="btn btn-outline" onclick="app.closeWinnerModal()">Continue Playing</button>
+                    </div>
                 </div>
             </div>
         </div>

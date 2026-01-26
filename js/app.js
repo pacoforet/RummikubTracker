@@ -1,4 +1,11 @@
 const app = {
+    // --- UTILS ---
+    escapeHtml: function(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    },
+
     // --- STATE ---
     state: {
         players: [
@@ -121,9 +128,10 @@ const app = {
             
             const card = document.createElement('div');
             card.className = `score-card ${isLeader ? 'leader' : ''}`;
+            const safeName = this.escapeHtml(p.name);
             card.innerHTML = `
-                <div class="player-avatar">${p.name.charAt(0).toUpperCase()}</div>
-                <div class="player-name">${p.name}</div>
+                <div class="player-avatar">${safeName.charAt(0).toUpperCase()}</div>
+                <div class="player-name">${safeName}</div>
                 <div class="player-score">${p.score}</div>
             `;
             grid.appendChild(card);
@@ -132,14 +140,132 @@ const app = {
 
     // --- ROUND ENTRY LOGIC ---
     currentWinnerId: null,
+    tileSelections: {}, // {playerId: {1: count, 2: count, ..., 30: count}}
+    useManualInput: {}, // {playerId: boolean}
+
+    // Tile grid methods
+    initTileSelection: function(playerId) {
+        if (!this.tileSelections[playerId]) {
+            this.tileSelections[playerId] = {};
+        }
+        if (this.useManualInput[playerId] === undefined) {
+            this.useManualInput[playerId] = false;
+        }
+    },
+
+    tapTile: function(playerId, value) {
+        this.initTileSelection(playerId);
+        this.tileSelections[playerId][value] = (this.tileSelections[playerId][value] || 0) + 1;
+        this.updateTileDisplay(playerId);
+    },
+
+    removeTile: function(playerId, value) {
+        this.initTileSelection(playerId);
+        if (this.tileSelections[playerId][value] > 0) {
+            this.tileSelections[playerId][value]--;
+        }
+        this.updateTileDisplay(playerId);
+    },
+
+    clearTiles: function(playerId) {
+        this.tileSelections[playerId] = {};
+        this.updateTileDisplay(playerId);
+    },
+
+    getTileTotal: function(playerId) {
+        const sel = this.tileSelections[playerId] || {};
+        let total = 0;
+        for (const val in sel) {
+            total += parseInt(val) * sel[val];
+        }
+        return total;
+    },
+
+    getTileCount: function(playerId) {
+        const sel = this.tileSelections[playerId] || {};
+        let count = 0;
+        for (const val in sel) {
+            count += sel[val];
+        }
+        return count;
+    },
+
+    toggleInputMode: function(playerId) {
+        this.useManualInput[playerId] = !this.useManualInput[playerId];
+        this.renderRoundInputs();
+    },
+
+    updateTileDisplay: function(playerId) {
+        const totalEl = document.getElementById(`tile-total-${playerId}`);
+        const countEl = document.getElementById(`tile-count-${playerId}`);
+        if (totalEl) totalEl.textContent = this.getTileTotal(playerId);
+        if (countEl) countEl.textContent = this.getTileCount(playerId);
+
+        // Update tile badges
+        for (let v = 1; v <= 13; v++) {
+            const badge = document.getElementById(`tile-badge-${playerId}-${v}`);
+            const count = (this.tileSelections[playerId] || {})[v] || 0;
+            if (badge) {
+                badge.textContent = count;
+                badge.style.display = count > 0 ? 'flex' : 'none';
+            }
+        }
+        // Joker (value 30)
+        const jokerBadge = document.getElementById(`tile-badge-${playerId}-30`);
+        const jokerCount = (this.tileSelections[playerId] || {})[30] || 0;
+        if (jokerBadge) {
+            jokerBadge.textContent = jokerCount;
+            jokerBadge.style.display = jokerCount > 0 ? 'flex' : 'none';
+        }
+    },
+
+    renderTileGrid: function(playerId) {
+        this.initTileSelection(playerId);
+        const sel = this.tileSelections[playerId] || {};
+
+        let tilesHtml = '';
+        for (let v = 1; v <= 13; v++) {
+            const count = sel[v] || 0;
+            tilesHtml += `
+                <button class="tile" onclick="app.tapTile(${playerId}, ${v})" oncontextmenu="event.preventDefault(); app.removeTile(${playerId}, ${v})">
+                    ${v}
+                    <span class="tile-badge" id="tile-badge-${playerId}-${v}" style="display:${count > 0 ? 'flex' : 'none'}">${count}</span>
+                </button>
+            `;
+        }
+        // Joker tile (value 30 in Rummikub)
+        const jokerCount = sel[30] || 0;
+        tilesHtml += `
+            <button class="tile tile-joker" onclick="app.tapTile(${playerId}, 30)" oncontextmenu="event.preventDefault(); app.removeTile(${playerId}, 30)">
+                J
+                <span class="tile-badge" id="tile-badge-${playerId}-30" style="display:${jokerCount > 0 ? 'flex' : 'none'}">${jokerCount}</span>
+            </button>
+        `;
+
+        return `
+            <div class="tile-picker">
+                <div class="tile-picker-header">
+                    <span class="tile-total-display"><span id="tile-count-${playerId}">${this.getTileCount(playerId)}</span> tiles = <strong id="tile-total-${playerId}">${this.getTileTotal(playerId)}</strong> pts</span>
+                    <button class="btn-small" onclick="app.clearTiles(${playerId})">Clear</button>
+                </div>
+                <div class="tile-grid">
+                    ${tilesHtml}
+                </div>
+                <button class="btn-text" onclick="app.toggleInputMode(${playerId})">Use number input</button>
+            </div>
+        `;
+    },
 
     openRoundEntry: function() {
         this.currentWinnerId = null;
+        // Reset tile selections for all players
+        this.tileSelections = {};
+        this.useManualInput = {};
         document.getElementById('modal-round').classList.add('open');
         this.renderRoundInputs();
-        
-        const text = this.state.settings.rule === 'standard' 
-            ? "Tap the WINNER, then enter positive tile count for losers." 
+
+        const text = this.state.settings.rule === 'standard'
+            ? "Tap the WINNER, then tap tiles for losers."
             : "Enter the points (+/-) for each player.";
         document.getElementById('round-instruction').textContent = text;
     },
@@ -157,23 +283,47 @@ const app = {
             div.className = 'round-entry-row';
 
             let controls = '';
-            
+
             if (this.state.settings.rule === 'standard') {
                 const isWinner = this.currentWinnerId === p.id;
-                controls = `
-                    <button class="winner-toggle ${isWinner ? 'selected' : ''}" onclick="app.toggleWinner(${p.id})">
-                        ${isWinner ? 'WINNER' : 'Select'}
-                    </button>
-                    ${!isWinner ? `<input type="number" id="input-${p.id}" class="score-input" placeholder="Tiles" pattern="\\d*">` : ''}
+                const useManual = this.useManualInput[p.id];
+
+                if (isWinner) {
+                    controls = `
+                        <button class="winner-toggle selected" onclick="app.toggleWinner(${p.id})">
+                            WINNER
+                        </button>
+                    `;
+                } else {
+                    controls = `
+                        <button class="winner-toggle" onclick="app.toggleWinner(${p.id})">
+                            Select
+                        </button>
+                    `;
+                }
+
+                div.innerHTML = `
+                    <div class="round-entry-player">
+                        <span class="player-label">${this.escapeHtml(p.name)}</span>
+                        ${controls}
+                    </div>
+                    ${!isWinner ? (useManual
+                        ? `<div class="manual-input-row">
+                               <input type="number" id="input-${p.id}" class="score-input" placeholder="Points" pattern="\\d*">
+                               <button class="btn-text" onclick="app.toggleInputMode(${p.id})">Use tile grid</button>
+                           </div>`
+                        : this.renderTileGrid(p.id)
+                    ) : ''}
                 `;
             } else {
-                controls = `<input type="number" id="input-${p.id}" class="score-input" placeholder="+/-" pattern="[0-9-]*">`;
+                div.innerHTML = `
+                    <div class="round-entry-player">
+                        <span class="player-label">${this.escapeHtml(p.name)}</span>
+                    </div>
+                    <input type="number" id="input-${p.id}" class="score-input" placeholder="+/-" pattern="[0-9-]*">
+                `;
             }
 
-            div.innerHTML = `
-                <span style="font-weight:600; font-size:14px;">${p.name}</span>
-                <div style="display:flex; align-items:center; gap:10px;">${controls}</div>
-            `;
             list.appendChild(div);
         });
     },
@@ -193,11 +343,16 @@ const app = {
             }
 
             let winnerSum = 0;
-            
+
             // Calc losers
             this.state.players.forEach(p => {
                 if (p.id !== this.currentWinnerId) {
-                    const val = parseInt(document.getElementById(`input-${p.id}`).value) || 0;
+                    let val;
+                    if (this.useManualInput[p.id]) {
+                        val = parseInt(document.getElementById(`input-${p.id}`).value) || 0;
+                    } else {
+                        val = this.getTileTotal(p.id);
+                    }
                     const points = -Math.abs(val); // Always negative
                     changes.push({playerId: p.id, points: points });
                     winnerSum += Math.abs(val);
@@ -229,6 +384,67 @@ const app = {
         this.saveGame();
         this.closeRoundEntry();
         this.renderScoreboard();
+
+        // Check for winner
+        this.checkForWinner();
+    },
+
+    checkForWinner: function() {
+        if (!this.state.settings.targetScore) return;
+
+        const winner = this.state.players.find(p => p.score >= this.state.settings.targetScore);
+        if (winner) {
+            this.showWinnerCelebration(winner);
+        }
+    },
+
+    showWinnerCelebration: function(winner) {
+        document.getElementById('winner-name').textContent = this.escapeHtml(winner.name);
+        document.getElementById('winner-score').textContent = winner.score;
+
+        // Populate final scores
+        const scoresList = document.getElementById('final-scores-list');
+        scoresList.innerHTML = '';
+        [...this.state.players]
+            .sort((a, b) => b.score - a.score)
+            .forEach(p => {
+                const div = document.createElement('div');
+                div.className = 'final-score-row';
+                div.innerHTML = `
+                    <span>${this.escapeHtml(p.name)}</span>
+                    <span>${p.score}</span>
+                `;
+                scoresList.appendChild(div);
+            });
+
+        document.getElementById('modal-winner').classList.add('open');
+    },
+
+    closeWinnerModal: function() {
+        document.getElementById('modal-winner').classList.remove('open');
+    },
+
+    newGameFromWinner: function() {
+        this.closeWinnerModal();
+        this.confirmEndGame();
+    },
+
+    // --- UNDO ---
+    undoLastRound: function() {
+        if (this.state.rounds.length === 0) {
+            alert("No rounds to undo.");
+            return;
+        }
+        if (!confirm("Undo the last round?")) return;
+
+        const lastRound = this.state.rounds.pop();
+        lastRound.changes.forEach(c => {
+            const player = this.state.players.find(p => p.id === c.playerId);
+            if (player) player.score -= c.points;
+        });
+
+        this.saveGame();
+        this.renderScoreboard();
     },
 
     // --- HISTORY ---
@@ -259,7 +475,7 @@ const app = {
             let badges = '';
             round.changes.forEach(c => {
                 const player = this.state.players.find(p => p.id === c.playerId);
-                const pName = player ? player.name.substring(0, 3) : '???';
+                const pName = player ? this.escapeHtml(player.name.substring(0, 3)) : '???';
                 const cls = c.points > 0 ? 'badge-pos' : (c.points < 0 ? 'badge-neg' : '');
                 badges += `<div class="score-badge ${cls}">${pName} ${c.points > 0 ? '+' : ''}${c.points}</div>`;
             });
@@ -267,9 +483,33 @@ const app = {
             div.innerHTML = `
                 <div class="history-round-num">Round ${actualRoundNum}</div>
                 <div class="history-badges">${badges}</div>
+                <button class="delete-round-btn" onclick="app.deleteRound(${round.id})">&times;</button>
             `;
             list.appendChild(div);
         });
+    },
+
+    deleteRound: function(roundId) {
+        if (!confirm("Delete this round? Scores will be recalculated.")) return;
+
+        const roundIndex = this.state.rounds.findIndex(r => r.id === roundId);
+        if (roundIndex === -1) return;
+
+        // Remove the round
+        this.state.rounds.splice(roundIndex, 1);
+
+        // Recalculate all scores from scratch
+        this.state.players.forEach(p => p.score = 0);
+        this.state.rounds.forEach(round => {
+            round.changes.forEach(c => {
+                const player = this.state.players.find(p => p.id === c.playerId);
+                if (player) player.score += c.points;
+            });
+        });
+
+        this.saveGame();
+        this.renderHistoryList();
+        this.renderScoreboard();
     },
 
     // --- UTILS ---
@@ -287,7 +527,7 @@ const app = {
             const div = document.createElement('div');
             div.className = 'player-setup-row';
             div.innerHTML = `
-                <input type="text" value="${p.name}" oninput="app.updatePlayerName(${index}, this.value)">
+                <input type="text" value="${this.escapeHtml(p.name)}" oninput="app.updatePlayerName(${index}, this.value)">
                 ${this.state.players.length > 2 ? `<button class="remove-player" onclick="app.removePlayer(${index})">&times;</button>` : ''}
             `;
             list.appendChild(div);
