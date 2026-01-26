@@ -31,15 +31,17 @@ body {
 
 /* Header */
 .app-header {
-    height: 60px;
+    min-height: 60px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 20px;
+    padding: 12px 20px;
+    padding-top: calc(12px + env(safe-area-inset-top));
     background: var(--card-bg);
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
-    padding-top: env(safe-area-inset-top);
+    position: relative;
+    z-index: 50;
 }
 
 #header-title {
@@ -52,8 +54,15 @@ body {
     background: none;
     border: none;
     color: var(--primary);
-    padding: 8px;
+    padding: 12px;
     cursor: pointer;
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    z-index: 51;
 }
 
 /* Main Container */
