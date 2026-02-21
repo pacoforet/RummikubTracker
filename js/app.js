@@ -1,566 +1,1137 @@
-const app = {
-    // --- UTILS ---
-    escapeHtml: function(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    },
+import { t, setLanguage, getLanguage, onLanguageChange } from './i18n.js';
+import {
+  getState,
+  setState,
+  loadState,
+  PLAYER_COLORS,
+  calculateStandardRound,
+  calculateSimpleRound,
+  calculateTileTotal,
+  calculateTileCount,
+  recalculateScores,
+  findWinner,
+  getPlayerStats,
+  getSortedPlayers,
+  getArchive,
+  archiveCurrentGame,
+  deleteArchiveEntry,
+  getLastGameConfig,
+} from './state.js';
+import {
+  showDialog,
+  showAlert,
+  showToast,
+  openModal,
+  closeModal,
+  initUI,
+  escapeHtml,
+  debounce,
+} from './ui.js';
+import { renderChart } from './chart.js';
 
-    // --- STATE ---
-    state: {
-        players: [
-            { id: 1, name: "Jugador 1", score: 0 },
-            { id: 2, name: "Jugador 2", score: 0 }
-        ],
-        rounds: [],
-        settings: {
-            targetScore: null,
-            rule: 'standard' // 'standard' | 'simple'
-        },
-        gameActive: false
-    },
+// --- App State (UI-only, not persisted) ---
+let currentWinnerId = null;
+let tileSelections = {};
+let useManualInput = {};
 
-    // --- INIT ---
-    init: function() {
-        this.loadGame();
-        
-        // If game is active, show scoreboard. Else setup.
-        if (this.state.gameActive) {
-            this.showView('view-scoreboard');
-            this.renderScoreboard();
+// --- Init ---
+
+function init() {
+  const state = loadState();
+  setLanguage(state.settings.language);
+  applyTheme(state.settings.theme);
+  initUI();
+  registerEvents();
+  onLanguageChange(() => renderCurrentView());
+
+  if (state.gameActive) {
+    showView('view-scoreboard');
+    renderScoreboard();
+  } else {
+    showView('view-setup');
+    renderSetup();
+  }
+
+  // Register service worker
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  }
+}
+
+// --- Theme ---
+
+function applyTheme(theme) {
+  const html = document.documentElement;
+  html.dataset.theme = theme;
+
+  let effective = theme;
+  if (theme === 'auto') {
+    effective = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+
+  const color = effective === 'dark' ? '#121212' : '#ffffff';
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', color);
+}
+
+// --- View Management ---
+
+function showView(viewId) {
+  document.querySelectorAll('.view').forEach((el) => el.classList.remove('active'));
+  const view = document.getElementById(viewId);
+  if (view) view.classList.add('active');
+
+  const historyBtn = document.getElementById('history-btn');
+  const chartBtn = document.getElementById('chart-btn');
+  const archiveBtn = document.getElementById('archive-btn');
+  const settingsBtn = document.getElementById('settings-btn');
+
+  if (viewId === 'view-setup') {
+    historyBtn?.classList.add('hidden');
+    chartBtn?.classList.add('hidden');
+    archiveBtn?.classList.remove('hidden');
+    settingsBtn?.classList.remove('hidden');
+  } else {
+    historyBtn?.classList.remove('hidden');
+    chartBtn?.classList.remove('hidden');
+    archiveBtn?.classList.add('hidden');
+    settingsBtn?.classList.add('hidden');
+  }
+}
+
+function renderCurrentView() {
+  const state = getState();
+  if (state.gameActive) {
+    renderScoreboard();
+  } else {
+    renderSetup();
+  }
+  updateHeaderTitle();
+}
+
+function updateHeaderTitle() {
+  const state = getState();
+  const el = document.getElementById('header-title');
+  if (state.gameActive && state.settings.targetScore) {
+    el.textContent = `${t('scoreboard.targetPrefix')} ${state.settings.targetScore}`;
+  } else {
+    el.textContent = t('app.title');
+  }
+}
+
+// --- Setup View ---
+
+function renderSetup() {
+  const state = getState();
+  updateHeaderTitle();
+
+  // Target score
+  const targetInput = document.getElementById('target-score');
+  targetInput.value = state.settings.targetScore || '';
+  targetInput.placeholder = t('setup.targetPlaceholder');
+
+  // Labels
+  setText('label-target', t('setup.targetScore'));
+  setText('label-scoring-rule', t('setup.scoringRule'));
+  setText('label-players', t('setup.players'));
+  setText('rule-desc',
+    state.settings.rule === 'standard' ? t('setup.standardDesc') : t('setup.simpleDesc')
+  );
+
+  // Segmented controls
+  document.querySelectorAll('.segment[data-group="rule"]').forEach((el) => {
+    el.classList.toggle('active', el.dataset.value === state.settings.rule);
+    el.textContent = t(`setup.${el.dataset.value}`);
+  });
+
+  // Player count
+  document.getElementById('player-count').textContent = `${state.players.length}/6`;
+
+  // Player list
+  const list = document.getElementById('player-setup-list');
+  list.innerHTML = '';
+
+  state.players.forEach((p, index) => {
+    const div = document.createElement('div');
+    div.className = 'player-setup-row';
+    div.innerHTML = `
+      <span class="player-color-dot" style="background:${p.color}"></span>
+      <input type="text" value="${escapeHtml(p.name)}"
+             data-action="update-player-name" data-index="${index}"
+             aria-label="${t('setup.players')} ${index + 1}">
+      ${state.players.length > 2
+        ? `<button class="remove-player" data-action="remove-player" data-index="${index}"
+                   aria-label="Remove player">&times;</button>`
+        : ''}
+    `;
+    list.appendChild(div);
+  });
+
+  // Add button visibility
+  const addBtn = document.getElementById('add-player-btn');
+  addBtn.textContent = t('setup.addPlayer');
+  addBtn.style.display = state.players.length >= 6 ? 'none' : '';
+
+  // Start button
+  setText('start-game-btn', t('setup.startGame'));
+
+  // Quick start
+  const quickBtn = document.getElementById('quick-start-btn');
+  const lastConfig = getLastGameConfig();
+  if (lastConfig) {
+    quickBtn.style.display = '';
+    quickBtn.textContent = t('setup.quickStart');
+  } else {
+    quickBtn.style.display = 'none';
+  }
+}
+
+// --- Scoreboard View ---
+
+function renderScoreboard() {
+  const state = getState();
+  updateHeaderTitle();
+
+  // Stats
+  setText('round-display', String(state.rounds.length + 1));
+  setText('goal-display', state.settings.targetScore || t('scoreboard.noTarget'));
+  setText('round-label', t('scoreboard.round'));
+  setText('goal-label', t('scoreboard.target'));
+  setText('undo-btn', t('scoreboard.undo'));
+  setText('end-btn', t('scoreboard.end'));
+  setText('record-round-btn', t('scoreboard.recordRound'));
+
+  // Sort toggle
+  const sortBtn = document.getElementById('sort-btn');
+  if (sortBtn) {
+    sortBtn.textContent = t('scoreboard.sortByScore');
+    sortBtn.classList.toggle('active', state.settings.sortByScore);
+  }
+
+  // Leaderboard
+  const grid = document.getElementById('leaderboard');
+  grid.innerHTML = '';
+
+  const sorted = getSortedPlayers(
+    state.players,
+    state.rounds,
+    state.settings.sortByScore,
+    state.settings.scoreDirection
+  );
+
+  // Determine positions by score rank
+  const scoresSorted = [...state.players]
+    .sort((a, b) =>
+      state.settings.scoreDirection === 'lowest' ? a.score - b.score : b.score - a.score
+    )
+    .map((p) => p.score);
+
+  // Set grid class based on player count
+  grid.className = 'leaderboard-grid';
+  if (sorted.length === 3 || sorted.length >= 5) grid.classList.add('grid-3');
+
+  sorted.forEach((p) => {
+    const position =
+      state.rounds.length > 0 ? scoresSorted.indexOf(p.score) + 1 : 0;
+    const isLeader = position === 1 && state.rounds.length > 0 && p.score !== 0;
+    const stats = getPlayerStats(p, state.rounds);
+    const posLabel =
+      position > 0 ? t('scoreboard.position')[position - 1] || `${position}` : '';
+
+    const card = document.createElement('div');
+    card.className = `score-card${isLeader ? ' leader' : ''}`;
+    card.setAttribute('role', 'group');
+    card.setAttribute('aria-label', `${p.name}: ${p.score} ${t('roundEntry.pts')}`);
+
+    card.innerHTML = `
+      ${position > 0
+        ? `<span class="position-badge pos-${Math.min(position, 4)}">${posLabel}</span>`
+        : ''}
+      <div class="player-avatar${isLeader ? ' leader' : ''}" style="background:${p.color}">
+        ${escapeHtml(p.name).charAt(0).toUpperCase()}
+      </div>
+      <div class="player-name">${escapeHtml(p.name)}</div>
+      <div class="player-score ${p.score < 0 ? 'negative' : ''}" data-player-id="${p.id}">
+        ${p.score}
+      </div>
+      ${state.rounds.length > 0
+        ? `<div class="player-mini-stats">
+            <span title="${t('stats.roundsWon')}">${stats.roundsWon}W</span>
+            <span title="${t('stats.avgPerRound')}">${stats.avgPerRound > 0 ? '+' : ''}${stats.avgPerRound}/r</span>
+          </div>`
+        : ''}
+    `;
+    grid.appendChild(card);
+  });
+}
+
+// --- Round Entry ---
+
+function openRoundEntry() {
+  currentWinnerId = null;
+  tileSelections = {};
+  useManualInput = {};
+
+  const state = getState();
+  setText('round-modal-title', t('roundEntry.title'));
+  setText(
+    'round-instruction',
+    state.settings.rule === 'standard'
+      ? t('roundEntry.instructionStandard')
+      : t('roundEntry.instructionSimple')
+  );
+
+  renderRoundInputs();
+  openModal('modal-round');
+}
+
+function renderRoundInputs() {
+  const state = getState();
+  const list = document.getElementById('round-entry-list');
+  list.innerHTML = '';
+
+  state.players.forEach((p) => {
+    const div = document.createElement('div');
+    div.className = 'round-entry-row';
+
+    if (state.settings.rule === 'standard') {
+      const isWinner = currentWinnerId === p.id;
+      const manual = useManualInput[p.id];
+
+      let projectedHtml = '';
+      if (!isWinner) {
+        let val = 0;
+        if (manual) {
+          const existing = document.getElementById(`input-${p.id}`);
+          val = existing ? parseInt(existing.value, 10) || 0 : 0;
         } else {
-            this.showView('view-setup');
-            this.renderSetupList();
+          val = calculateTileTotal(tileSelections[p.id] || {});
         }
-
-        // Restore UI settings
-        document.getElementById('target-score').value = this.state.settings.targetScore || '';
-        this.updateRuleUI(this.state.settings.rule);
-    },
-
-    // --- SETUP LOGIC ---
-    addPlayer: function() {
-        if (this.state.players.length >= 4) return;
-        const newId = Date.now();
-        this.state.players.push({
-            id: newId,
-            name: `Jugador ${this.state.players.length + 1}`,
-            score: 0
-        });
-        this.renderSetupList();
-        this.saveGame();
-    },
-
-    removePlayer: function(index) {
-        if (this.state.players.length <= 2) return;
-        this.state.players.splice(index, 1);
-        this.renderSetupList();
-        this.saveGame();
-    },
-
-    updatePlayerName: function(index, newName) {
-        this.state.players[index].name = newName;
-        this.saveGame();
-    },
-
-    setRule: function(rule) {
-        this.state.settings.rule = rule;
-        this.updateRuleUI(rule);
-        this.saveGame();
-    },
-
-    updateRuleUI: function(rule) {
-        document.querySelectorAll('.segment').forEach(el => {
-            el.classList.toggle('active', el.dataset.value === rule);
-        });
-        const desc = document.getElementById('rule-desc');
-        desc.textContent = rule === 'standard'
-            ? "El ganador suma los puntos de los perdedores. Los perdedores restan sus puntos."
-            : "Introduce el cambio de puntuación (+/-) para cada jugador manualmente.";
-    },
-
-    startGame: function() {
-        const targetInput = document.getElementById('target-score').value;
-        this.state.settings.targetScore = targetInput ? parseInt(targetInput) : null;
-        this.state.gameActive = true;
-        this.state.rounds = [];
-        // Reset scores
-        this.state.players.forEach(p => p.score = 0);
-        
-        this.saveGame();
-        this.showView('view-scoreboard');
-        this.renderScoreboard();
-    },
-
-    confirmEndGame: function() {
-        if (confirm("¿Estás seguro de que quieres terminar esta partida? Se borrará el historial.")) {
-            this.state.gameActive = false;
-            this.state.players.forEach(p => p.score = 0);
-            this.state.rounds = [];
-            this.saveGame();
-            this.showView('view-setup');
-        }
-    },
-
-    // --- SCOREBOARD LOGIC ---
-    renderScoreboard: function() {
-        // Stats
-        document.getElementById('round-display').textContent = this.state.rounds.length + 1;
-        document.getElementById('goal-display').textContent = this.state.settings.targetScore || '-';
-        document.getElementById('header-title').textContent = this.state.settings.targetScore
-            ? `Meta: ${this.state.settings.targetScore}`
-            : "Rummikub";
-
-        // Show history button only in scoreboard
-        document.getElementById('history-btn').classList.remove('hidden');
-
-        // Leaderboard
-        const grid = document.getElementById('leaderboard');
-        grid.innerHTML = '';
-        
-        // Find leader score
-        const maxScore = Math.max(...this.state.players.map(p => p.score));
-        // Sort players by score for display (optional, but good for leaderboard feel)
-        // Let's keep input order but highlight leader.
-        
-        this.state.players.forEach(p => {
-            const isLeader = this.state.rounds.length > 0 && p.score === maxScore && p.score !== 0; // Only leader if score > 0? Or just max.
-            
-            const card = document.createElement('div');
-            card.className = `score-card ${isLeader ? 'leader' : ''}`;
-            const safeName = this.escapeHtml(p.name);
-            card.innerHTML = `
-                <div class="player-avatar">${safeName.charAt(0).toUpperCase()}</div>
-                <div class="player-name">${safeName}</div>
-                <div class="player-score">${p.score}</div>
-            `;
-            grid.appendChild(card);
-        });
-    },
-
-    // --- ROUND ENTRY LOGIC ---
-    currentWinnerId: null,
-    tileSelections: {}, // {playerId: {1: count, 2: count, ..., 30: count}}
-    useManualInput: {}, // {playerId: boolean}
-
-    // Tile grid methods
-    initTileSelection: function(playerId) {
-        if (!this.tileSelections[playerId]) {
-            this.tileSelections[playerId] = {};
-        }
-        if (this.useManualInput[playerId] === undefined) {
-            this.useManualInput[playerId] = false;
-        }
-    },
-
-    tapTile: function(playerId, value) {
-        this.initTileSelection(playerId);
-        this.tileSelections[playerId][value] = (this.tileSelections[playerId][value] || 0) + 1;
-        this.updateTileDisplay(playerId);
-    },
-
-    removeTile: function(playerId, value) {
-        this.initTileSelection(playerId);
-        if (this.tileSelections[playerId][value] > 0) {
-            this.tileSelections[playerId][value]--;
-        }
-        this.updateTileDisplay(playerId);
-    },
-
-    clearTiles: function(playerId) {
-        this.tileSelections[playerId] = {};
-        this.updateTileDisplay(playerId);
-    },
-
-    getTileTotal: function(playerId) {
-        const sel = this.tileSelections[playerId] || {};
-        let total = 0;
-        for (const val in sel) {
-            total += parseInt(val) * sel[val];
-        }
-        return total;
-    },
-
-    getTileCount: function(playerId) {
-        const sel = this.tileSelections[playerId] || {};
-        let count = 0;
-        for (const val in sel) {
-            count += sel[val];
-        }
-        return count;
-    },
-
-    toggleInputMode: function(playerId) {
-        this.useManualInput[playerId] = !this.useManualInput[playerId];
-        this.renderRoundInputs();
-    },
-
-    updateTileDisplay: function(playerId) {
-        const totalEl = document.getElementById(`tile-total-${playerId}`);
-        const countEl = document.getElementById(`tile-count-${playerId}`);
-        if (totalEl) totalEl.textContent = this.getTileTotal(playerId);
-        if (countEl) countEl.textContent = this.getTileCount(playerId);
-
-        // Update tile badges
-        for (let v = 1; v <= 13; v++) {
-            const badge = document.getElementById(`tile-badge-${playerId}-${v}`);
-            const count = (this.tileSelections[playerId] || {})[v] || 0;
-            if (badge) {
-                badge.textContent = count;
-                badge.style.display = count > 0 ? 'flex' : 'none';
-            }
-        }
-        // Joker (value 30)
-        const jokerBadge = document.getElementById(`tile-badge-${playerId}-30`);
-        const jokerCount = (this.tileSelections[playerId] || {})[30] || 0;
-        if (jokerBadge) {
-            jokerBadge.textContent = jokerCount;
-            jokerBadge.style.display = jokerCount > 0 ? 'flex' : 'none';
-        }
-    },
-
-    renderTileGrid: function(playerId) {
-        this.initTileSelection(playerId);
-        const sel = this.tileSelections[playerId] || {};
-
-        let tilesHtml = '';
-        for (let v = 1; v <= 13; v++) {
-            const count = sel[v] || 0;
-            tilesHtml += `
-                <button class="tile" onclick="app.tapTile(${playerId}, ${v})" oncontextmenu="event.preventDefault(); app.removeTile(${playerId}, ${v})">
-                    ${v}
-                    <span class="tile-badge" id="tile-badge-${playerId}-${v}" style="display:${count > 0 ? 'flex' : 'none'}">${count}</span>
-                </button>
-            `;
-        }
-        // Joker tile (value 30 in Rummikub)
-        const jokerCount = sel[30] || 0;
-        tilesHtml += `
-            <button class="tile tile-joker" onclick="app.tapTile(${playerId}, 30)" oncontextmenu="event.preventDefault(); app.removeTile(${playerId}, 30)">
-                J
-                <span class="tile-badge" id="tile-badge-${playerId}-30" style="display:${jokerCount > 0 ? 'flex' : 'none'}">${jokerCount}</span>
-            </button>
-        `;
-
-        return `
-            <div class="tile-picker">
-                <div class="tile-picker-header">
-                    <span class="tile-total-display"><span id="tile-count-${playerId}">${this.getTileCount(playerId)}</span> fichas = <strong id="tile-total-${playerId}">${this.getTileTotal(playerId)}</strong> pts</span>
-                    <button class="btn-small" onclick="app.clearTiles(${playerId})">Limpiar</button>
-                </div>
-                <div class="tile-grid">
-                    ${tilesHtml}
-                </div>
-                <button class="btn-text" onclick="app.toggleInputMode(${playerId})">Usar entrada numérica</button>
-            </div>
-        `;
-    },
-
-    openRoundEntry: function() {
-        this.currentWinnerId = null;
-        // Reset tile selections for all players
-        this.tileSelections = {};
-        this.useManualInput = {};
-        document.getElementById('modal-round').classList.add('open');
-        this.renderRoundInputs();
-
-        const text = this.state.settings.rule === 'standard'
-            ? "Selecciona el GANADOR, luego marca las fichas de los perdedores."
-            : "Introduce los puntos (+/-) para cada jugador.";
-        document.getElementById('round-instruction').textContent = text;
-    },
-
-    closeRoundEntry: function() {
-        document.getElementById('modal-round').classList.remove('open');
-    },
-
-    renderRoundInputs: function() {
-        const list = document.getElementById('round-entry-list');
-        list.innerHTML = '';
-
-        this.state.players.forEach(p => {
-            const div = document.createElement('div');
-            div.className = 'round-entry-row';
-
-            let controls = '';
-
-            if (this.state.settings.rule === 'standard') {
-                const isWinner = this.currentWinnerId === p.id;
-                const useManual = this.useManualInput[p.id];
-
-                if (isWinner) {
-                    controls = `
-                        <button class="winner-toggle selected" onclick="app.toggleWinner(${p.id})">
-                            GANADOR
-                        </button>
-                    `;
-                } else {
-                    controls = `
-                        <button class="winner-toggle" onclick="app.toggleWinner(${p.id})">
-                            Elegir
-                        </button>
-                    `;
-                }
-
-                div.innerHTML = `
-                    <div class="round-entry-player">
-                        <span class="player-label">${this.escapeHtml(p.name)}</span>
-                        ${controls}
-                    </div>
-                    ${!isWinner ? (useManual
-                        ? `<div class="manual-input-row">
-                               <input type="number" id="input-${p.id}" class="score-input" placeholder="Puntos" pattern="\\d*">
-                               <button class="btn-text" onclick="app.toggleInputMode(${p.id})">Usar fichas</button>
-                           </div>`
-                        : this.renderTileGrid(p.id)
-                    ) : ''}
-                `;
+        const projected = p.score - Math.abs(val);
+        projectedHtml = `<span class="projected-score">${t('roundEntry.projected')}: ${projected}</span>`;
+      } else {
+        let winnerGets = 0;
+        state.players.forEach((op) => {
+          if (op.id !== p.id) {
+            if (useManualInput[op.id]) {
+              const existing = document.getElementById(`input-${op.id}`);
+              winnerGets += Math.abs(parseInt(existing?.value, 10) || 0);
             } else {
-                div.innerHTML = `
-                    <div class="round-entry-player">
-                        <span class="player-label">${this.escapeHtml(p.name)}</span>
-                    </div>
-                    <input type="number" id="input-${p.id}" class="score-input" placeholder="+/-" pattern="[0-9-]*">
-                `;
+              winnerGets += calculateTileTotal(tileSelections[op.id] || {});
             }
-
-            list.appendChild(div);
+          }
         });
-    },
+        const projected = p.score + winnerGets;
+        projectedHtml = `<span class="projected-score">${t('roundEntry.projected')}: ${projected}</span>`;
+      }
 
-    toggleWinner: function(id) {
-        this.currentWinnerId = (this.currentWinnerId === id) ? null : id;
-        this.renderRoundInputs();
-    },
+      div.innerHTML = `
+        <div class="round-entry-player">
+          <span class="player-label">
+            <span class="player-color-dot" style="background:${p.color}"></span>
+            ${escapeHtml(p.name)}
+            ${projectedHtml}
+          </span>
+          <button class="winner-toggle ${isWinner ? 'selected' : ''}"
+                  data-action="toggle-winner" data-player-id="${p.id}"
+                  aria-pressed="${isWinner}">
+            ${isWinner ? t('roundEntry.winner') : t('roundEntry.choose')}
+          </button>
+        </div>
+        ${!isWinner ? (manual ? renderManualInput(p.id) : renderTileGrid(p.id)) : ''}
+      `;
+    } else {
+      const existing = document.getElementById(`input-${p.id}`);
+      const currentVal = existing ? existing.value : '';
+      const numVal = parseInt(currentVal, 10) || 0;
+      const projected = p.score + numVal;
 
-    submitRound: function() {
-        const changes = [];
-
-        if (this.state.settings.rule === 'standard') {
-            if (!this.currentWinnerId) {
-                alert("Por favor, selecciona un ganador.");
-                return;
-            }
-
-            let winnerSum = 0;
-
-            // Calc losers
-            this.state.players.forEach(p => {
-                if (p.id !== this.currentWinnerId) {
-                    let val;
-                    if (this.useManualInput[p.id]) {
-                        val = parseInt(document.getElementById(`input-${p.id}`).value) || 0;
-                    } else {
-                        val = this.getTileTotal(p.id);
-                    }
-                    const points = -Math.abs(val); // Always negative
-                    changes.push({playerId: p.id, points: points });
-                    winnerSum += Math.abs(val);
-                }
-            });
-            // Add winner
-            changes.push({playerId: this.currentWinnerId, points: winnerSum });
-
-        } else {
-            // Simple
-            this.state.players.forEach(p => {
-                const val = parseInt(document.getElementById(`input-${p.id}`).value) || 0;
-                changes.push({playerId: p.id, points: val });
-            });
-        }
-
-        // Apply changes
-        changes.forEach(c => {
-            const player = this.state.players.find(p => p.id === c.playerId);
-            if (player) player.score += c.points;
-        });
-
-        // Save round history
-        this.state.rounds.push({
-            id: Date.now(),
-            changes: changes
-        });
-
-        this.saveGame();
-        this.closeRoundEntry();
-        this.renderScoreboard();
-
-        // Check for winner
-        this.checkForWinner();
-    },
-
-    checkForWinner: function() {
-        if (!this.state.settings.targetScore) return;
-
-        const winner = this.state.players.find(p => p.score >= this.state.settings.targetScore);
-        if (winner) {
-            this.showWinnerCelebration(winner);
-        }
-    },
-
-    showWinnerCelebration: function(winner) {
-        document.getElementById('winner-name').textContent = this.escapeHtml(winner.name);
-        document.getElementById('winner-score').textContent = winner.score;
-
-        // Populate final scores
-        const scoresList = document.getElementById('final-scores-list');
-        scoresList.innerHTML = '';
-        [...this.state.players]
-            .sort((a, b) => b.score - a.score)
-            .forEach(p => {
-                const div = document.createElement('div');
-                div.className = 'final-score-row';
-                div.innerHTML = `
-                    <span>${this.escapeHtml(p.name)}</span>
-                    <span>${p.score}</span>
-                `;
-                scoresList.appendChild(div);
-            });
-
-        document.getElementById('modal-winner').classList.add('open');
-    },
-
-    closeWinnerModal: function() {
-        document.getElementById('modal-winner').classList.remove('open');
-    },
-
-    newGameFromWinner: function() {
-        this.closeWinnerModal();
-        this.confirmEndGame();
-    },
-
-    // --- UNDO ---
-    undoLastRound: function() {
-        if (this.state.rounds.length === 0) {
-            alert("No hay rondas para deshacer.");
-            return;
-        }
-        if (!confirm("¿Deshacer la última ronda?")) return;
-
-        const lastRound = this.state.rounds.pop();
-        lastRound.changes.forEach(c => {
-            const player = this.state.players.find(p => p.id === c.playerId);
-            if (player) player.score -= c.points;
-        });
-
-        this.saveGame();
-        this.renderScoreboard();
-    },
-
-    // --- HISTORY ---
-    toggleHistory: function() {
-        const modal = document.getElementById('modal-history');
-        if (modal.classList.contains('open')) {
-            modal.classList.remove('open');
-        } else {
-            modal.classList.add('open');
-            this.renderHistoryList();
-        }
-    },
-
-    renderHistoryList: function() {
-        const list = document.getElementById('history-list');
-        list.innerHTML = '';
-        if (this.state.rounds.length === 0) {
-            list.innerHTML = '<p style="text-align:center; color:var(--text-sec);">Sin historial todavía.</p>';
-            return;
-        }
-
-        // Clone and reverse to show newest first
-        [...this.state.rounds].reverse().forEach((round, idx) => {
-            const actualRoundNum = this.state.rounds.length - idx;
-            const div = document.createElement('div');
-            div.className = 'history-item';
-            
-            let badges = '';
-            round.changes.forEach(c => {
-                const player = this.state.players.find(p => p.id === c.playerId);
-                const pName = player ? this.escapeHtml(player.name.substring(0, 3)) : '???';
-                const cls = c.points > 0 ? 'badge-pos' : (c.points < 0 ? 'badge-neg' : '');
-                badges += `<div class="score-badge ${cls}">${pName} ${c.points > 0 ? '+' : ''}${c.points}</div>`;
-            });
-
-            div.innerHTML = `
-                <div class="history-round-num">Ronda ${actualRoundNum}</div>
-                <div class="history-badges">${badges}</div>
-                <button class="delete-round-btn" onclick="app.deleteRound(${round.id})">&times;</button>
-            `;
-            list.appendChild(div);
-        });
-    },
-
-    deleteRound: function(roundId) {
-        if (!confirm("¿Eliminar esta ronda? Las puntuaciones se recalcularán.")) return;
-
-        const roundIndex = this.state.rounds.findIndex(r => r.id === roundId);
-        if (roundIndex === -1) return;
-
-        // Remove the round
-        this.state.rounds.splice(roundIndex, 1);
-
-        // Recalculate all scores from scratch
-        this.state.players.forEach(p => p.score = 0);
-        this.state.rounds.forEach(round => {
-            round.changes.forEach(c => {
-                const player = this.state.players.find(p => p.id === c.playerId);
-                if (player) player.score += c.points;
-            });
-        });
-
-        this.saveGame();
-        this.renderHistoryList();
-        this.renderScoreboard();
-    },
-
-    // --- UTILS ---
-    renderSetupList: function() {
-        const list = document.getElementById('player-setup-list');
-        list.innerHTML = '';
-        document.getElementById('player-count').textContent = `${this.state.players.length}/4`;
-        
-        // Disable add button if 4
-        const addBtn = document.getElementById('add-player-btn');
-        if (this.state.players.length >= 4) addBtn.style.display = 'none';
-        else addBtn.style.display = 'block';
-
-        this.state.players.forEach((p, index) => {
-            const div = document.createElement('div');
-            div.className = 'player-setup-row';
-            div.innerHTML = `
-                <input type="text" value="${this.escapeHtml(p.name)}" oninput="app.updatePlayerName(${index}, this.value)">
-                ${this.state.players.length > 2 ? `<button class="remove-player" onclick="app.removePlayer(${index})">&times;</button>` : ''}
-            `;
-            list.appendChild(div);
-        });
-    },
-
-    showView: function(viewId) {
-        document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
-        document.getElementById(viewId).classList.add('active');
-        
-        // Hide history button if in setup
-        if (viewId === 'view-setup') {
-            document.getElementById('history-btn').classList.add('hidden');
-        }
-    },
-
-    saveGame: function() {
-        localStorage.setItem('rummikub_data', JSON.stringify(this.state));
-    },
-
-    loadGame: function() {
-        const data = localStorage.getItem('rummikub_data');
-        if (data) {
-            try {
-                const parsed = JSON.parse(data);
-                // Merge logic to avoid crashes if structure changed
-                this.state = { ...this.state, ...parsed };
-            } catch(e) {
-                console.error("Archivo de guardado corrupto");
-            }
-        }
+      div.innerHTML = `
+        <div class="round-entry-player">
+          <span class="player-label">
+            <span class="player-color-dot" style="background:${p.color}"></span>
+            ${escapeHtml(p.name)}
+            <span class="projected-score">${t('roundEntry.projected')}: ${projected}</span>
+          </span>
+        </div>
+        <input type="number" id="input-${p.id}" class="score-input"
+               placeholder="+/-" pattern="[0-9-]*" value="${currentVal}"
+               data-action="simple-score-input" data-player-id="${p.id}"
+               aria-label="${t('roundEntry.points')} ${escapeHtml(p.name)}">
+      `;
     }
-};
 
-// Start
-app.init();
+    list.appendChild(div);
+  });
+
+  setText('save-round-btn', t('roundEntry.save'));
+}
+
+function renderManualInput(playerId) {
+  return `
+    <div class="manual-input-row">
+      <input type="number" id="input-${playerId}" class="score-input"
+             placeholder="${t('roundEntry.points')}" pattern="\\d*"
+             aria-label="${t('roundEntry.points')}">
+      <button class="btn-text" data-action="toggle-input-mode" data-player-id="${playerId}">
+        ${t('roundEntry.useTiles')}
+      </button>
+    </div>
+  `;
+}
+
+function renderTileGrid(playerId) {
+  if (!tileSelections[playerId]) tileSelections[playerId] = {};
+  const sel = tileSelections[playerId];
+
+  let tilesHtml = '';
+  for (let v = 1; v <= 13; v++) {
+    const count = sel[v] || 0;
+    tilesHtml += `
+      <button class="tile${count > 0 ? ' tile-active' : ''}"
+              data-action="tap-tile" data-player-id="${playerId}" data-value="${v}"
+              aria-label="Tile ${v}, count: ${count}">
+        ${v}
+        <span class="tile-badge" style="display:${count > 0 ? 'flex' : 'none'}">${count}</span>
+      </button>
+    `;
+  }
+  // Joker (value 30)
+  const jokerCount = sel[30] || 0;
+  tilesHtml += `
+    <button class="tile tile-joker${jokerCount > 0 ? ' tile-active' : ''}"
+            data-action="tap-tile" data-player-id="${playerId}" data-value="30"
+            aria-label="Joker, count: ${jokerCount}">
+      J
+      <span class="tile-badge" style="display:${jokerCount > 0 ? 'flex' : 'none'}">${jokerCount}</span>
+    </button>
+  `;
+
+  const total = calculateTileTotal(sel);
+  const count = calculateTileCount(sel);
+
+  return `
+    <div class="tile-picker">
+      <div class="tile-picker-header">
+        <span class="tile-total-display">
+          <span>${count}</span> ${t('roundEntry.tiles')} =
+          <strong>${total}</strong> ${t('roundEntry.pts')}
+        </span>
+        <button class="btn-small" data-action="clear-tiles" data-player-id="${playerId}">
+          ${t('roundEntry.clear')}
+        </button>
+      </div>
+      <div class="tile-grid">${tilesHtml}</div>
+      <button class="btn-text" data-action="toggle-input-mode" data-player-id="${playerId}">
+        ${t('roundEntry.useNumeric')}
+      </button>
+    </div>
+  `;
+}
+
+function tapTile(playerId, value) {
+  if (!tileSelections[playerId]) tileSelections[playerId] = {};
+  tileSelections[playerId][value] = (tileSelections[playerId][value] || 0) + 1;
+  renderRoundInputs();
+}
+
+function removeTile(playerId, value) {
+  if (!tileSelections[playerId]) return;
+  if ((tileSelections[playerId][value] || 0) > 0) {
+    tileSelections[playerId][value]--;
+    renderRoundInputs();
+  }
+}
+
+async function submitRound() {
+  const state = getState();
+  let changes;
+
+  if (state.settings.rule === 'standard') {
+    if (!currentWinnerId) {
+      await showAlert(t('dialog.selectWinner'));
+      return;
+    }
+
+    const manualInputs = {};
+    state.players.forEach((p) => {
+      if (p.id !== currentWinnerId && useManualInput[p.id]) {
+        const el = document.getElementById(`input-${p.id}`);
+        if (el) manualInputs[p.id] = el.value;
+      }
+    });
+
+    changes = calculateStandardRound(
+      state.players, currentWinnerId, tileSelections, manualInputs
+    );
+  } else {
+    const inputs = {};
+    state.players.forEach((p) => {
+      const el = document.getElementById(`input-${p.id}`);
+      if (el) inputs[p.id] = el.value;
+    });
+    changes = calculateSimpleRound(state.players, inputs);
+  }
+
+  // Apply changes
+  const players = state.players.map((p) => {
+    const change = changes.find((c) => c.playerId === p.id);
+    return { ...p, score: p.score + (change ? change.points : 0) };
+  });
+
+  const rounds = [...state.rounds, { id: Date.now(), changes }];
+
+  setState((s) => ({ ...s, players, rounds }));
+
+  closeModal('modal-round');
+  renderScoreboard();
+  showToast(t('toast.roundSaved'), 'success');
+
+  // Animate score deltas
+  animateScoreDeltas(changes);
+
+  // Check for winner
+  const winner = findWinner(players, state.settings);
+  if (winner) {
+    setTimeout(
+      () => showWinnerCelebration(winner, players, rounds, state.settings),
+      600
+    );
+  }
+}
+
+function animateScoreDeltas(changes) {
+  changes.forEach((c) => {
+    const scoreEl = document.querySelector(`.player-score[data-player-id="${c.playerId}"]`);
+    if (!scoreEl) return;
+
+    const delta = document.createElement('span');
+    delta.className = `score-delta ${c.points >= 0 ? 'delta-pos' : 'delta-neg'}`;
+    delta.textContent = `${c.points >= 0 ? '+' : ''}${c.points}`;
+    scoreEl.style.position = 'relative';
+    scoreEl.appendChild(delta);
+
+    setTimeout(() => delta.remove(), 1500);
+  });
+}
+
+// --- Winner Celebration ---
+
+function showWinnerCelebration(winner, players, rounds, settings) {
+  setText('winner-title-text', t('winner.title'));
+  document.getElementById('winner-name').textContent = escapeHtml(winner.name);
+  document.getElementById('winner-score').textContent = winner.score;
+  setText('final-scores-heading', t('winner.finalScores'));
+
+  const scoresList = document.getElementById('final-scores-list');
+  scoresList.innerHTML = '';
+  [...players]
+    .sort((a, b) =>
+      settings.scoreDirection === 'lowest' ? a.score - b.score : b.score - a.score
+    )
+    .forEach((p) => {
+      const div = document.createElement('div');
+      div.className = 'final-score-row';
+      div.innerHTML = `
+        <span><span class="player-color-dot" style="background:${p.color}"></span>${escapeHtml(p.name)}</span>
+        <span class="final-score-value">${p.score}</span>
+      `;
+      scoresList.appendChild(div);
+    });
+
+  // Summary stats
+  const summaryEl = document.getElementById('game-summary-stats');
+  if (summaryEl) {
+    const bestRound = { player: null, points: -Infinity };
+    const roundWins = {};
+    players.forEach((p) => (roundWins[p.id] = 0));
+
+    rounds.forEach((r) => {
+      r.changes.forEach((c) => {
+        if (c.points > bestRound.points) {
+          bestRound.points = c.points;
+          bestRound.player = players.find((p) => p.id === c.playerId);
+        }
+      });
+      const maxPts = Math.max(...r.changes.map((c) => c.points));
+      const roundWinner = r.changes.find((c) => c.points === maxPts && c.points > 0);
+      if (roundWinner && roundWins[roundWinner.playerId] !== undefined) {
+        roundWins[roundWinner.playerId]++;
+      }
+    });
+
+    const mostWinsEntry = Object.entries(roundWins).sort((a, b) => b[1] - a[1])[0];
+    const mostWinsPlayer = players.find(
+      (p) => p.id === parseInt(mostWinsEntry?.[0], 10)
+    );
+
+    summaryEl.innerHTML = `
+      <div class="summary-stat">
+        <span class="summary-label">${t('summary.totalRounds')}</span>
+        <span class="summary-value">${rounds.length}</span>
+      </div>
+      ${bestRound.player
+        ? `<div class="summary-stat">
+            <span class="summary-label">${t('summary.bestRound')}</span>
+            <span class="summary-value">${escapeHtml(bestRound.player.name)} (+${bestRound.points})</span>
+          </div>`
+        : ''}
+      ${mostWinsPlayer
+        ? `<div class="summary-stat">
+            <span class="summary-label">${t('summary.mostWins')}</span>
+            <span class="summary-value">${escapeHtml(mostWinsPlayer.name)} (${mostWinsEntry[1]})</span>
+          </div>`
+        : ''}
+    `;
+  }
+
+  setText('winner-new-game-btn', t('winner.newGame'));
+  setText('winner-keep-playing-btn', t('winner.keepPlaying'));
+  setText('share-results-btn', t('summary.share'));
+
+  openModal('modal-winner');
+  if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+}
+
+// --- History ---
+
+function openHistory() {
+  renderHistoryList();
+  openModal('modal-history');
+}
+
+function renderHistoryList() {
+  const state = getState();
+  const list = document.getElementById('history-list');
+  list.innerHTML = '';
+
+  setText('history-modal-title', t('history.title'));
+
+  if (state.rounds.length === 0) {
+    list.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">📋</div>
+      <p>${t('history.empty')}</p>
+    </div>`;
+    return;
+  }
+
+  [...state.rounds].reverse().forEach((round, idx) => {
+    const actualRoundNum = state.rounds.length - idx;
+    const div = document.createElement('div');
+    div.className = 'history-item stagger-in';
+    div.style.animationDelay = `${idx * 40}ms`;
+
+    let badges = '';
+    round.changes.forEach((c) => {
+      const player = state.players.find((p) => p.id === c.playerId);
+      const pName = player ? escapeHtml(player.name.substring(0, 4)) : '???';
+      const color = player ? player.color : '#666';
+      const cls = c.points > 0 ? 'badge-pos' : c.points < 0 ? 'badge-neg' : '';
+      badges += `<div class="score-badge ${cls}">
+        <span class="badge-dot" style="background:${color}"></span>
+        ${pName} ${c.points > 0 ? '+' : ''}${c.points}
+      </div>`;
+    });
+
+    div.innerHTML = `
+      <div class="history-round-num">${t('history.round')} ${actualRoundNum}</div>
+      <div class="history-badges">${badges}</div>
+      <button class="delete-round-btn" data-action="delete-round" data-round-id="${round.id}"
+              aria-label="Delete round ${actualRoundNum}">&times;</button>
+    `;
+    list.appendChild(div);
+  });
+}
+
+async function deleteRound(roundId) {
+  const confirmed = await showDialog({
+    title: t('dialog.deleteRoundTitle'),
+    message: t('dialog.deleteRoundMsg'),
+    danger: true,
+  });
+  if (!confirmed) return;
+
+  const state = getState();
+  const rounds = state.rounds.filter((r) => r.id !== roundId);
+  const players = recalculateScores(
+    state.players.map((p) => ({ ...p })),
+    rounds
+  );
+
+  setState((s) => ({ ...s, players, rounds }));
+  renderHistoryList();
+  renderScoreboard();
+  showToast(t('toast.roundDeleted'));
+}
+
+// --- Undo ---
+
+async function undoLastRound() {
+  const state = getState();
+  if (state.rounds.length === 0) {
+    await showAlert(t('dialog.noRoundsUndo'));
+    return;
+  }
+
+  const confirmed = await showDialog({
+    title: t('dialog.undoTitle'),
+    message: t('dialog.undoMsg'),
+  });
+  if (!confirmed) return;
+
+  const rounds = state.rounds.slice(0, -1);
+  const players = recalculateScores(
+    state.players.map((p) => ({ ...p })),
+    rounds
+  );
+
+  setState((s) => ({ ...s, players, rounds }));
+  renderScoreboard();
+  showToast(t('toast.roundUndone'));
+}
+
+// --- Chart ---
+
+function openChart() {
+  const state = getState();
+  setText('chart-modal-title', t('chart.title'));
+  openModal('modal-chart');
+
+  requestAnimationFrame(() => {
+    const canvas = document.getElementById('score-chart');
+    if (canvas) renderChart(canvas, state.players, state.rounds);
+  });
+}
+
+// --- Archive ---
+
+function openArchive() {
+  renderArchiveList();
+  openModal('modal-archive');
+}
+
+function renderArchiveList() {
+  const archive = getArchive();
+  const list = document.getElementById('archive-list');
+  list.innerHTML = '';
+
+  setText('archive-modal-title', t('archive.title'));
+
+  if (archive.length === 0) {
+    list.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">🗃️</div>
+      <p>${t('archive.empty')}</p>
+    </div>`;
+    return;
+  }
+
+  archive.forEach((game) => {
+    const div = document.createElement('div');
+    div.className = 'archive-item';
+
+    const date = new Date(game.date);
+    const dateStr = date.toLocaleDateString(
+      getLanguage() === 'es' ? 'es-ES' : 'en-US',
+      { day: 'numeric', month: 'short', year: 'numeric' }
+    );
+
+    const winnerPlayer = [...game.players].sort((a, b) => b.score - a.score)[0];
+    const playerNames = game.players.map((p) => escapeHtml(p.name)).join(', ');
+
+    div.innerHTML = `
+      <div class="archive-info">
+        <div class="archive-date">${dateStr}</div>
+        <div class="archive-players">${playerNames}</div>
+        <div class="archive-meta">
+          ${game.rounds.length} ${t('archive.rounds')}
+          · 🏆 ${escapeHtml(winnerPlayer?.name || '?')} (${winnerPlayer?.score || 0})
+        </div>
+      </div>
+      <button class="delete-round-btn" data-action="delete-archive"
+              data-archive-id="${game.id}"
+              aria-label="${t('archive.delete')}">&times;</button>
+    `;
+    list.appendChild(div);
+  });
+}
+
+async function handleDeleteArchive(archiveId) {
+  const confirmed = await showDialog({
+    title: t('dialog.deleteArchiveTitle'),
+    message: t('dialog.deleteArchiveMsg'),
+    danger: true,
+  });
+  if (!confirmed) return;
+  deleteArchiveEntry(archiveId);
+  renderArchiveList();
+}
+
+// --- Settings ---
+
+function openSettings() {
+  const state = getState();
+
+  setText('settings-modal-title', t('settings.title'));
+  setText('label-theme', t('settings.theme'));
+  setText('label-language', t('settings.language'));
+
+  document.querySelectorAll('.segment[data-group="theme"]').forEach((el) => {
+    el.classList.toggle('active', el.dataset.value === state.settings.theme);
+    el.textContent = t(`settings.${el.dataset.value}`);
+  });
+
+  document.querySelectorAll('.segment[data-group="language"]').forEach((el) => {
+    el.classList.toggle('active', el.dataset.value === state.settings.language);
+  });
+
+  openModal('modal-settings');
+}
+
+// --- Share ---
+
+async function shareResults() {
+  const state = getState();
+  const sorted = [...state.players].sort((a, b) =>
+    state.settings.scoreDirection === 'lowest' ? a.score - b.score : b.score - a.score
+  );
+
+  let text = `🎲 Rummikub - ${t('summary.title')}\n`;
+  text += `${t('summary.totalRounds')}: ${state.rounds.length}\n\n`;
+
+  sorted.forEach((p, i) => {
+    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '  ';
+    text += `${medal} ${p.name}: ${p.score}\n`;
+  });
+
+  if (navigator.share) {
+    try {
+      await navigator.share({ text });
+      showToast(t('toast.shared'), 'success');
+    } catch { /* cancelled */ }
+  } else {
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast(t('toast.copied'), 'success');
+    } catch { /* fallback */ }
+  }
+}
+
+// --- Game Actions ---
+
+function addPlayer() {
+  const state = getState();
+  if (state.players.length >= 6) return;
+
+  const newId = Date.now();
+  const idx = state.players.length;
+  const name = getLanguage() === 'es' ? `Jugador ${idx + 1}` : `Player ${idx + 1}`;
+
+  setState((s) => ({
+    ...s,
+    players: [
+      ...s.players,
+      { id: newId, name, color: PLAYER_COLORS[idx % PLAYER_COLORS.length], score: 0 },
+    ],
+  }));
+  renderSetup();
+}
+
+function removePlayer(index) {
+  const state = getState();
+  if (state.players.length <= 2) return;
+  setState((s) => ({
+    ...s,
+    players: s.players.filter((_, i) => i !== index),
+  }));
+  renderSetup();
+}
+
+const debouncedSave = debounce((index, value) => {
+  const state = getState();
+  const players = state.players.map((p, i) =>
+    i === index ? { ...p, name: value } : p
+  );
+  setState((s) => ({ ...s, players }));
+}, 300);
+
+function startGame() {
+  const targetInput = document.getElementById('target-score');
+  const targetVal = targetInput ? parseInt(targetInput.value, 10) : null;
+
+  setState((s) => ({
+    ...s,
+    settings: { ...s.settings, targetScore: targetVal || null },
+    gameActive: true,
+    rounds: [],
+    players: s.players.map((p) => ({ ...p, score: 0 })),
+  }));
+
+  showView('view-scoreboard');
+  renderScoreboard();
+}
+
+function quickStart() {
+  const config = getLastGameConfig();
+  if (!config) return;
+
+  setState((s) => ({
+    ...s,
+    players: config.players,
+    settings: { ...s.settings, ...config.settings },
+    gameActive: true,
+    rounds: [],
+  }));
+
+  showView('view-scoreboard');
+  renderScoreboard();
+}
+
+async function confirmEndGame() {
+  const confirmed = await showDialog({
+    title: t('dialog.endGameTitle'),
+    message: t('dialog.endGameMsg'),
+    danger: true,
+  });
+  if (!confirmed) return;
+
+  const state = getState();
+  if (state.rounds.length > 0) {
+    archiveCurrentGame();
+    showToast(t('toast.gameArchived'));
+  }
+
+  setState((s) => ({
+    ...s,
+    gameActive: false,
+    players: s.players.map((p) => ({ ...p, score: 0 })),
+    rounds: [],
+  }));
+
+  showView('view-setup');
+  renderSetup();
+}
+
+function newGameFromWinner() {
+  closeModal('modal-winner');
+  const state = getState();
+  if (state.rounds.length > 0) archiveCurrentGame();
+
+  setState((s) => ({
+    ...s,
+    gameActive: false,
+    players: s.players.map((p) => ({ ...p, score: 0 })),
+    rounds: [],
+  }));
+
+  showView('view-setup');
+  renderSetup();
+}
+
+// --- Event Delegation ---
+
+let longPressTimer = null;
+
+function registerEvents() {
+  document.addEventListener('click', handleClick);
+  document.addEventListener('input', handleInput);
+  document.addEventListener('contextmenu', handleContextMenu);
+
+  // Long press for tile removal on mobile
+  document.addEventListener('pointerdown', handlePointerDown);
+  document.addEventListener('pointerup', handlePointerUp);
+  document.addEventListener('pointercancel', handlePointerUp);
+}
+
+function handleClick(e) {
+  const target = e.target.closest('[data-action]');
+  if (!target) return;
+
+  const action = target.dataset.action;
+  const playerId = target.dataset.playerId
+    ? parseInt(target.dataset.playerId, 10)
+    : null;
+  const index =
+    target.dataset.index !== undefined ? parseInt(target.dataset.index, 10) : null;
+
+  switch (action) {
+    // Setup
+    case 'add-player':
+      addPlayer();
+      break;
+    case 'remove-player':
+      removePlayer(index);
+      break;
+    case 'set-rule': {
+      const rule = target.dataset.value;
+      setState((s) => ({ ...s, settings: { ...s.settings, rule } }));
+      renderSetup();
+      break;
+    }
+    case 'start-game':
+      startGame();
+      break;
+    case 'quick-start':
+      quickStart();
+      break;
+
+    // Scoreboard
+    case 'open-round-entry':
+      openRoundEntry();
+      break;
+    case 'undo-last-round':
+      undoLastRound();
+      break;
+    case 'end-game':
+      confirmEndGame();
+      break;
+    case 'toggle-sort':
+      setState((s) => ({
+        ...s,
+        settings: { ...s.settings, sortByScore: !s.settings.sortByScore },
+      }));
+      renderScoreboard();
+      break;
+
+    // Round Entry
+    case 'toggle-winner':
+      currentWinnerId = currentWinnerId === playerId ? null : playerId;
+      renderRoundInputs();
+      break;
+    case 'tap-tile': {
+      const value = parseInt(target.dataset.value, 10);
+      tapTile(playerId, value);
+      break;
+    }
+    case 'clear-tiles':
+      tileSelections[playerId] = {};
+      renderRoundInputs();
+      break;
+    case 'toggle-input-mode':
+      useManualInput[playerId] = !useManualInput[playerId];
+      renderRoundInputs();
+      break;
+    case 'submit-round':
+      submitRound();
+      break;
+    case 'close-round':
+      closeModal('modal-round');
+      break;
+
+    // History
+    case 'open-history':
+      openHistory();
+      break;
+    case 'close-history':
+      closeModal('modal-history');
+      break;
+    case 'delete-round': {
+      const roundId = parseInt(target.dataset.roundId, 10);
+      deleteRound(roundId);
+      break;
+    }
+
+    // Winner
+    case 'new-game-winner':
+      newGameFromWinner();
+      break;
+    case 'keep-playing':
+      closeModal('modal-winner');
+      break;
+    case 'share-results':
+      shareResults();
+      break;
+
+    // Chart
+    case 'open-chart':
+      openChart();
+      break;
+    case 'close-chart':
+      closeModal('modal-chart');
+      break;
+
+    // Archive
+    case 'open-archive':
+      openArchive();
+      break;
+    case 'close-archive':
+      closeModal('modal-archive');
+      break;
+    case 'delete-archive': {
+      const archiveId = parseInt(target.dataset.archiveId, 10);
+      handleDeleteArchive(archiveId);
+      break;
+    }
+
+    // Settings
+    case 'open-settings':
+      openSettings();
+      break;
+    case 'close-settings':
+      closeModal('modal-settings');
+      break;
+    case 'set-theme': {
+      const theme = target.dataset.value;
+      applyTheme(theme);
+      setState((s) => ({ ...s, settings: { ...s.settings, theme } }));
+      document.querySelectorAll('.segment[data-group="theme"]').forEach((el) => {
+        el.classList.toggle('active', el.dataset.value === theme);
+      });
+      break;
+    }
+    case 'set-language': {
+      const lang = target.dataset.value;
+      setLanguage(lang);
+      setState((s) => ({ ...s, settings: { ...s.settings, language: lang } }));
+      document.querySelectorAll('.segment[data-group="language"]').forEach((el) => {
+        el.classList.toggle('active', el.dataset.value === lang);
+      });
+      break;
+    }
+  }
+}
+
+function handleInput(e) {
+  const target = e.target;
+  if (target.dataset.action === 'update-player-name') {
+    const index = parseInt(target.dataset.index, 10);
+    debouncedSave(index, target.value);
+  }
+}
+
+function handleContextMenu(e) {
+  const tile = e.target.closest('[data-action="tap-tile"]');
+  if (tile) {
+    e.preventDefault();
+    const playerId = parseInt(tile.dataset.playerId, 10);
+    const value = parseInt(tile.dataset.value, 10);
+    removeTile(playerId, value);
+  }
+}
+
+function handlePointerDown(e) {
+  const tile = e.target.closest('[data-action="tap-tile"]');
+  if (!tile) return;
+
+  longPressTimer = setTimeout(() => {
+    const playerId = parseInt(tile.dataset.playerId, 10);
+    const value = parseInt(tile.dataset.value, 10);
+    removeTile(playerId, value);
+    longPressTimer = null;
+  }, 500);
+}
+
+function handlePointerUp() {
+  if (longPressTimer) {
+    clearTimeout(longPressTimer);
+    longPressTimer = null;
+  }
+}
+
+// --- Helpers ---
+
+function setText(id, text) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = text;
+}
+
+// --- Start ---
+init();
