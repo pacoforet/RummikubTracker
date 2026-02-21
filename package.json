@@ -1,0 +1,16 @@
+{
+  "name": "rummikub-tracker",
+  "version": "2.0.0",
+  "description": "A mobile-first PWA for tracking Rummikub game scores",
+  "main": "js/app.js",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/",
+    "lint": "eslint js/",
+    "format": "prettier --write 'js/**/*.js' 'css/**/*.css'",
+    "serve": "python3 -m http.server 8080"
+  },
+  "keywords": ["rummikub", "score-tracker", "pwa", "game"],
+  "license": "MIT",
+  "devDependencies": {}
+}
