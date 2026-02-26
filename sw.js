@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rummikub-v2';
+const CACHE_NAME = 'rummikub-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -9,6 +9,14 @@ const ASSETS = [
   './js/ui.js',
   './js/chart.js',
   './manifest.json',
+  './favicon.ico',
+  './favicon.svg',
+  './favicon-16x16.png',
+  './favicon-32x32.png',
+  './apple-touch-icon.png',
+  './icon-192.png',
+  './icon-512.png',
+  './icon-maskable-512.png',
 ];
 
 self.addEventListener('install', (event) => {
