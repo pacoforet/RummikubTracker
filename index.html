@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#121212">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="description" content="Track Rummikub game scores with ease">
+  <meta name="description" content="Lleva la puntuación de tus partidas de Rummikub">
   <title>Rummikub Tracker</title>
   <link rel="stylesheet" href="css/styles.css">
   <link rel="icon" href="favicon.ico" sizes="any">
@@ -26,25 +26,25 @@
     <div id="header-title">Rummikub</div>
     <div class="header-actions">
       <!-- Shown during game -->
-      <button id="chart-btn" class="icon-btn hidden" data-action="open-chart" aria-label="Score chart">
+      <button id="chart-btn" class="icon-btn hidden" data-action="open-chart" aria-label="Gráfico de puntuación" data-i18n-aria="a11y.chart">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
         </svg>
       </button>
-      <button id="history-btn" class="icon-btn hidden" data-action="open-history" aria-label="Game history">
+      <button id="history-btn" class="icon-btn hidden" data-action="open-history" aria-label="Historial de la partida" data-i18n-aria="a11y.history">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"></path>
         </svg>
       </button>
       <!-- Shown during setup -->
-      <button id="archive-btn" class="icon-btn" data-action="open-archive" aria-label="Past games">
+      <button id="archive-btn" class="icon-btn" data-action="open-archive" aria-label="Partidas anteriores" data-i18n-aria="a11y.archive">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <rect x="2" y="3" width="20" height="5" rx="1"></rect>
           <path d="M4 8v11a2 2 0 002 2h12a2 2 0 002-2V8"></path>
           <path d="M10 12h4"></path>
         </svg>
       </button>
-      <button id="settings-btn" class="icon-btn" data-action="open-settings" aria-label="Settings">
+      <button id="settings-btn" class="icon-btn" data-action="open-settings" aria-label="Ajustes" data-i18n-aria="a11y.settings">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="3"></circle>
           <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09a1.65 1.65 0 00-1.08-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09a1.65 1.65 0 001.51-1.08 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001.08 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1.08z"></path>
@@ -56,18 +56,18 @@
   <main id="main-container" role="main">
 
     <!-- VIEW: SETUP -->
-    <section id="view-setup" class="view active" aria-label="Game setup">
+    <section id="view-setup" class="view active" aria-label="Configuración de la partida" data-i18n-aria="a11y.setup">
       <div class="card">
-        <h2 id="label-config">Configuración</h2>
+        <h2 id="label-config" data-i18n="setup.config">Configuración</h2>
         <div class="input-group">
-          <label id="label-target" for="target-score">Puntuación Objetivo (Opcional)</label>
-          <input type="number" id="target-score" placeholder="ej. 200" pattern="\d*" inputmode="numeric">
+          <label id="label-target" for="target-score" data-i18n="setup.targetScore">Puntuación Objetivo (Opcional)</label>
+          <input type="number" id="target-score" placeholder="ej. 200" data-i18n-placeholder="setup.targetPlaceholder" min="1" step="1" inputmode="numeric">
         </div>
         <div class="input-group">
-          <label id="label-scoring-rule">Regla de Puntuación</label>
-          <div class="segmented-control" role="radiogroup" aria-label="Scoring rule">
-            <button class="segment active" data-group="rule" data-value="standard" data-action="set-rule" role="radio" aria-checked="true">Estándar</button>
-            <button class="segment" data-group="rule" data-value="simple" data-action="set-rule" role="radio" aria-checked="false">Simple</button>
+          <label id="label-scoring-rule" data-i18n="setup.scoringRule">Regla de Puntuación</label>
+          <div class="segmented-control" role="radiogroup" aria-labelledby="label-scoring-rule">
+            <button class="segment active" data-group="rule" data-value="standard" data-action="set-rule" role="radio" aria-checked="true" tabindex="0" data-i18n="setup.standard">Estándar</button>
+            <button class="segment" data-group="rule" data-value="simple" data-action="set-rule" role="radio" aria-checked="false" tabindex="-1" data-i18n="setup.simple">Simple</button>
           </div>
           <p class="helper-text" id="rule-desc">El ganador suma los puntos de los perdedores. Los perdedores restan sus puntos.</p>
         </div>
@@ -75,71 +75,71 @@
 
       <div class="card">
         <div class="card-header">
-          <h2 id="label-players">Jugadores</h2>
+          <h2 id="label-players" data-i18n="setup.players">Jugadores</h2>
           <span id="player-count">2/6</span>
         </div>
         <div id="player-setup-list">
           <!-- JS populates -->
         </div>
-        <button class="btn btn-outline" id="add-player-btn" data-action="add-player">+ Añadir Jugador</button>
+        <button class="btn btn-outline" id="add-player-btn" data-action="add-player" data-i18n="setup.addPlayer">+ Añadir Jugador</button>
       </div>
 
-      <button class="btn btn-outline" id="quick-start-btn" data-action="quick-start" style="display:none">Repetir Última Partida</button>
-      <button class="btn btn-primary btn-large sticky-bottom" id="start-game-btn" data-action="start-game">Iniciar Partida</button>
+      <button class="btn btn-outline hidden" id="quick-start-btn" data-action="quick-start" data-i18n="setup.quickStart">Repetir Última Partida</button>
+      <button class="btn btn-primary btn-large sticky-bottom" id="start-game-btn" data-action="start-game" data-i18n="setup.startGame">Iniciar Partida</button>
     </section>
 
     <!-- VIEW: SCOREBOARD -->
-    <section id="view-scoreboard" class="view" aria-label="Scoreboard">
+    <section id="view-scoreboard" class="view" aria-label="Marcador" data-i18n-aria="a11y.scoreboard">
       <div class="stats-bar">
         <div class="stat">
-          <span class="label" id="round-label">RONDA</span>
+          <span class="label" id="round-label" data-i18n="scoreboard.round">RONDA</span>
           <span class="value" id="round-display">1</span>
         </div>
         <div class="stat">
-          <span class="label" id="goal-label">META</span>
+          <span class="label" id="goal-label" data-i18n="scoreboard.target">META</span>
           <span class="value" id="goal-display">-</span>
         </div>
         <div class="stats-bar-actions">
-          <button class="btn-small btn-secondary" id="sort-btn" data-action="toggle-sort">Ordenar</button>
-          <button class="btn-small btn-secondary" id="undo-btn" data-action="undo-last-round">Deshacer</button>
-          <button class="btn-small btn-danger" id="end-btn" data-action="end-game">Fin</button>
+          <button class="btn-small btn-secondary" id="sort-btn" data-action="toggle-sort" aria-pressed="false" data-i18n="scoreboard.sortByScore">Ordenar</button>
+          <button class="btn-small btn-secondary" id="undo-btn" data-action="undo-last-round" data-i18n="scoreboard.undo">Deshacer</button>
+          <button class="btn-small btn-danger" id="end-btn" data-action="end-game" data-i18n="scoreboard.end">Fin</button>
         </div>
       </div>
 
-      <div id="leaderboard" class="leaderboard-grid" role="list" aria-label="Player scores">
+      <div id="leaderboard" class="leaderboard-grid" role="list" aria-label="Puntuaciones de los jugadores" data-i18n-aria="a11y.playerScores">
         <!-- JS populates -->
       </div>
 
       <div class="fab-container">
-        <button class="btn btn-primary btn-fab" id="record-round-btn" data-action="open-round-entry">
+        <button class="btn btn-primary btn-fab" id="record-round-btn" data-action="open-round-entry" data-i18n="scoreboard.recordRound">
           + Registrar Ronda
         </button>
       </div>
     </section>
 
     <!-- MODAL: ROUND ENTRY -->
-    <div id="modal-round" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div id="modal-round" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="round-modal-title">
       <div class="modal-content">
         <div class="modal-header">
-          <h3 id="round-modal-title">Resultados de la Ronda</h3>
-          <button class="close-btn" data-action="close-round" aria-label="Close">&times;</button>
+          <h3 id="round-modal-title" data-i18n="roundEntry.title">Resultados de la Ronda</h3>
+          <button class="close-btn" data-action="close-modal" data-modal="modal-round" aria-label="Cerrar" data-i18n-aria="a11y.close">&times;</button>
         </div>
         <p class="instruction-text" id="round-instruction">Selecciona el ganador.</p>
         <div id="round-entry-list">
           <!-- JS populates -->
         </div>
         <div class="modal-footer">
-          <button class="btn btn-primary btn-large" id="save-round-btn" data-action="submit-round">Guardar Ronda</button>
+          <button class="btn btn-primary btn-large" id="save-round-btn" data-action="submit-round" data-i18n="roundEntry.save">Guardar Ronda</button>
         </div>
       </div>
     </div>
 
     <!-- MODAL: HISTORY -->
-    <div id="modal-history" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div id="modal-history" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="history-modal-title">
       <div class="modal-content">
         <div class="modal-header">
-          <h3 id="history-modal-title">Historial de la Partida</h3>
-          <button class="close-btn" data-action="close-history" aria-label="Close">&times;</button>
+          <h3 id="history-modal-title" data-i18n="history.title">Historial de la Partida</h3>
+          <button class="close-btn" data-action="close-modal" data-modal="modal-history" aria-label="Cerrar" data-i18n-aria="a11y.close">&times;</button>
         </div>
         <div id="history-list">
           <!-- JS populates -->
@@ -148,7 +148,7 @@
     </div>
 
     <!-- MODAL: WINNER CELEBRATION -->
-    <div id="modal-winner" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div id="modal-winner" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="winner-title-text">
       <div class="modal-content winner-modal">
         <div class="confetti-container" aria-hidden="true">
           <div class="confetti"></div>
@@ -162,7 +162,7 @@
         </div>
         <div class="winner-content">
           <div class="trophy" aria-hidden="true">🏆</div>
-          <h2 class="winner-title" id="winner-title-text">¡Ganador!</h2>
+          <h2 class="winner-title" id="winner-title-text" data-i18n="winner.title">¡Ganador!</h2>
           <div class="winner-name" id="winner-name">Player</div>
           <div class="winner-score-display" id="winner-score">0</div>
 
@@ -171,27 +171,27 @@
           </div>
 
           <div class="final-scores">
-            <h4 id="final-scores-heading">Puntuaciones Finales</h4>
+            <h4 id="final-scores-heading" data-i18n="winner.finalScores">Puntuaciones Finales</h4>
             <div id="final-scores-list">
               <!-- JS populates -->
             </div>
           </div>
 
           <div class="winner-actions">
-            <button class="btn btn-outline" id="share-results-btn" data-action="share-results">Compartir Resultados</button>
-            <button class="btn btn-primary" id="winner-new-game-btn" data-action="new-game-winner">Nueva Partida</button>
-            <button class="btn btn-outline" id="winner-keep-playing-btn" data-action="keep-playing">Seguir Jugando</button>
+            <button class="btn btn-outline" id="share-results-btn" data-action="share-results" data-i18n="summary.share">Compartir Resultados</button>
+            <button class="btn btn-primary" id="winner-new-game-btn" data-action="new-game-winner" data-i18n="winner.newGame">Nueva Partida</button>
+            <button class="btn btn-outline" id="winner-keep-playing-btn" data-action="keep-playing" data-i18n="winner.keepPlaying">Seguir Jugando</button>
           </div>
         </div>
       </div>
     </div>
 
     <!-- MODAL: CHART -->
-    <div id="modal-chart" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div id="modal-chart" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="chart-modal-title">
       <div class="modal-content">
         <div class="modal-header">
-          <h3 id="chart-modal-title">Gráfico de Puntuación</h3>
-          <button class="close-btn" data-action="close-chart" aria-label="Close">&times;</button>
+          <h3 id="chart-modal-title" data-i18n="chart.title">Gráfico de Puntuación</h3>
+          <button class="close-btn" data-action="close-modal" data-modal="modal-chart" aria-label="Cerrar" data-i18n-aria="a11y.close">&times;</button>
         </div>
         <div class="chart-container">
           <canvas id="score-chart"></canvas>
@@ -200,11 +200,11 @@
     </div>
 
     <!-- MODAL: ARCHIVE -->
-    <div id="modal-archive" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div id="modal-archive" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="archive-modal-title">
       <div class="modal-content">
         <div class="modal-header">
-          <h3 id="archive-modal-title">Partidas Anteriores</h3>
-          <button class="close-btn" data-action="close-archive" aria-label="Close">&times;</button>
+          <h3 id="archive-modal-title" data-i18n="archive.title">Partidas Anteriores</h3>
+          <button class="close-btn" data-action="close-modal" data-modal="modal-archive" aria-label="Cerrar" data-i18n-aria="a11y.close">&times;</button>
         </div>
         <div id="archive-list">
           <!-- JS populates -->
@@ -213,35 +213,35 @@
     </div>
 
     <!-- MODAL: SETTINGS -->
-    <div id="modal-settings" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div id="modal-settings" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="settings-modal-title">
       <div class="modal-content">
         <div class="modal-header">
-          <h3 id="settings-modal-title">Ajustes</h3>
-          <button class="close-btn" data-action="close-settings" aria-label="Close">&times;</button>
+          <h3 id="settings-modal-title" data-i18n="settings.title">Ajustes</h3>
+          <button class="close-btn" data-action="close-modal" data-modal="modal-settings" aria-label="Cerrar" data-i18n-aria="a11y.close">&times;</button>
         </div>
         <div class="settings-group">
-          <label id="label-theme">Tema</label>
-          <div class="segmented-control" role="radiogroup" aria-label="Theme">
-            <button class="segment" data-group="theme" data-value="dark" data-action="set-theme" role="radio">Oscuro</button>
-            <button class="segment active" data-group="theme" data-value="auto" data-action="set-theme" role="radio">Auto</button>
-            <button class="segment" data-group="theme" data-value="light" data-action="set-theme" role="radio">Claro</button>
+          <label id="label-theme" data-i18n="settings.theme">Tema</label>
+          <div class="segmented-control" role="radiogroup" aria-labelledby="label-theme">
+            <button class="segment" data-group="theme" data-value="dark" data-action="set-theme" role="radio" aria-checked="false" tabindex="-1" data-i18n="settings.dark">Oscuro</button>
+            <button class="segment active" data-group="theme" data-value="auto" data-action="set-theme" role="radio" aria-checked="true" tabindex="0" data-i18n="settings.auto">Auto</button>
+            <button class="segment" data-group="theme" data-value="light" data-action="set-theme" role="radio" aria-checked="false" tabindex="-1" data-i18n="settings.light">Claro</button>
           </div>
         </div>
         <div class="settings-group">
-          <label id="label-language">Idioma</label>
-          <div class="segmented-control" role="radiogroup" aria-label="Language">
-            <button class="segment active" data-group="language" data-value="es" data-action="set-language" role="radio">Español</button>
-            <button class="segment" data-group="language" data-value="en" data-action="set-language" role="radio">English</button>
+          <label id="label-language" data-i18n="settings.language">Idioma</label>
+          <div class="segmented-control" role="radiogroup" aria-labelledby="label-language">
+            <button class="segment active" data-group="language" data-value="es" data-action="set-language" role="radio" aria-checked="true" tabindex="0" lang="es">Español</button>
+            <button class="segment" data-group="language" data-value="en" data-action="set-language" role="radio" aria-checked="false" tabindex="-1" lang="en">English</button>
           </div>
         </div>
       </div>
     </div>
 
     <!-- CUSTOM DIALOG (replaces alert/confirm) -->
-    <div id="custom-dialog" class="modal" role="alertdialog" aria-modal="true" aria-hidden="true">
+    <div id="custom-dialog" class="modal" role="alertdialog" aria-modal="true" aria-hidden="true" aria-labelledby="dialog-title" aria-describedby="dialog-message">
       <div class="modal-content">
-        <div class="dialog-title"></div>
-        <div class="dialog-message"></div>
+        <div class="dialog-title" id="dialog-title"></div>
+        <div class="dialog-message" id="dialog-message"></div>
         <div class="dialog-actions">
           <button class="btn btn-outline" data-action="dialog-cancel">Cancelar</button>
           <button class="btn btn-primary" data-action="dialog-confirm">Confirmar</button>

@@ -10,7 +10,7 @@ A mobile-first Progressive Web App for tracking Rummikub game scores. Designed f
   - **Simple:** Manual +/- point entry for each player
 - **Player Management:** Supports 2 to 6 players with custom names and color-coded avatars
 - **Score Chart:** Visual line chart showing score progression across rounds
-- **Game Archive:** Completed games are automatically saved and reviewable
+- **Game Archive:** The last 50 completed games are saved automatically (winner, players and round count)
 - **Quick Start:** Replay the last game configuration with one tap
 - **Share Results:** Share final scores via Web Share API or clipboard
 - **Player Stats:** Per-player statistics (rounds won, average score, best round)
@@ -19,7 +19,8 @@ A mobile-first Progressive Web App for tracking Rummikub game scores. Designed f
 - **Light/Dark Theme:** Manual toggle or auto-detect from system preference
 - **Offline Support:** Service worker caches all assets for full offline use
 - **Accessible:** ARIA labels, keyboard navigation, focus trapping, screen reader support
-- **Persistence:** Automatically saves game progress to local storage with data migration
+- **Persistence:** Automatically saves game progress to local storage with data migration; unreadable data is backed up instead of discarded
+- **Update prompt:** When a new version is deployed, the app offers a one-tap reload
 
 ## How to Use
 
@@ -38,29 +39,49 @@ This is a Progressive Web App (PWA). To install:
 
 ## Development
 
-The app uses vanilla JavaScript with ES modules. No build step required.
+The app uses vanilla JavaScript with ES modules. No build step is required to run it; Node.js 20+ is only needed for the dev tooling.
 
 ```bash
-# Serve locally (ES modules require HTTP server)
-python3 -m http.server 8080
+npm install          # eslint + prettier
 
-# Run tests
-node --test tests/
-
-# Lint (requires eslint installed)
-npx eslint js/
+npm run serve        # http://localhost:8080 (ES modules need an HTTP server)
+npm test             # unit tests (node:test) against js/state.js
+npm run lint         # eslint
+npm run format       # prettier --write
+npm run check        # lint + format check + tests (what CI runs)
 ```
+
+CI (`.github/workflows/ci.yml`) runs `npm run check` on every pull request and verifies that every
+JS module is listed in the service worker's precache.
+
+### Releasing
+
+The service worker serves the app from a versioned cache. **Bump `VERSION` in `sw.js` on every
+deploy** (and add any new file to `ASSETS`); users then get a "New version available" prompt.
 
 ## Architecture
 
 ```
 js/
-  app.js      - Main application logic and event delegation
-  state.js    - State management, persistence, scoring calculations
-  ui.js       - Custom dialogs, toasts, modal management
-  chart.js    - Canvas-based score chart
-  i18n.js     - Internationalization (Spanish/English)
+  app.js              - Entry point: init, action/input event delegation, service worker
+  state.js            - State, persistence, migrations and all scoring/ranking logic (pure, tested)
+  ui.js               - Dialogs, toasts, modals (back-button aware), focus trap, radio groups
+  i18n.js             - Spanish/English strings; data-i18n attributes translate static markup
+  theme.js            - Light/dark/auto theme
+  chart.js            - Canvas score chart
+  views/
+    navigation.js     - Switching between setup and scoreboard
+    setup.js          - Player/rule setup and game start validation
+    scoreboard.js     - Leaderboard, undo, end game
+    roundEntry.js     - Round modal (tile picker, numeric input, live projections)
+    winner.js         - Winner celebration and sharing
+    history.js        - Round history and chart modal
+    archive.js        - Past games
+    settings.js       - Theme and language
 ```
+
+Each view module exports an `actions` map keyed by the `data-action` attribute of the elements it
+handles; `app.js` merges them into one click handler.
 
 ## Technology
 

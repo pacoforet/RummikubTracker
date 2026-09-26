@@ -1,8 +1,13 @@
-const STATE_VERSION = 2;
+const STATE_VERSION = 3;
 const STORAGE_KEY = 'rummikub_data';
+const BACKUP_KEY = 'rummikub_data_backup';
 const ARCHIVE_KEY = 'rummikub_archive';
+const ARCHIVE_LIMIT = 50;
+const MIN_PLAYERS = 2;
+const MAX_PLAYERS = 6;
 
 const PLAYER_COLORS = ['#4A90E2', '#E25C5C', '#4AE28A', '#E2C84A', '#A64AE2', '#E28A4A'];
+const COLOR_RE = /^#[0-9a-f]{6}$/i;
 
 function defaultState() {
   return {
@@ -15,58 +20,65 @@ function defaultState() {
     settings: {
       targetScore: null,
       rule: 'standard',
-      scoreDirection: 'highest',
       language: 'es',
       theme: 'auto',
       sortByScore: false,
     },
     gameActive: false,
+    // Id of the player whose win has already been celebrated (null = none yet)
+    winnerAnnounced: null,
   };
 }
 
 function validateState(state) {
   if (!state || typeof state !== 'object') return null;
-  if (!Array.isArray(state.players) || state.players.length < 2) return null;
+  if (!Array.isArray(state.players) || state.players.length < MIN_PLAYERS) return null;
   if (!Array.isArray(state.rounds)) return null;
   if (!state.settings || typeof state.settings !== 'object') return null;
 
-  for (const p of state.players) {
-    if (typeof p.id === 'undefined' || typeof p.name !== 'string') return null;
+  for (const [i, p] of state.players.entries()) {
+    if (!p || typeof p.id === 'undefined' || typeof p.name !== 'string') return null;
     if (typeof p.score !== 'number' || !isFinite(p.score)) p.score = 0;
+    // Colors end up in style attributes, so only accept plain hex values
+    if (typeof p.color !== 'string' || !COLOR_RE.test(p.color)) {
+      p.color = PLAYER_COLORS[i % PLAYER_COLORS.length];
+    }
   }
 
   for (const r of state.rounds) {
-    if (!Array.isArray(r.changes)) return null;
+    if (!r || !Array.isArray(r.changes)) return null;
   }
 
   return state;
 }
 
-function migrateState(raw) {
-  if (!raw || typeof raw !== 'object') return defaultState();
+export function migrateState(raw) {
+  if (!raw || typeof raw !== 'object') return null;
 
   // v1 -> v2: add missing fields
   if (!raw.version || raw.version < 2) {
-    raw.version = STATE_VERSION;
-
     if (raw.players) {
       raw.players.forEach((p, i) => {
         if (!p.color) p.color = PLAYER_COLORS[i % PLAYER_COLORS.length];
       });
     }
-
     if (!raw.settings) raw.settings = {};
-    if (!raw.settings.scoreDirection) raw.settings.scoreDirection = 'highest';
     if (!raw.settings.language) raw.settings.language = 'es';
     if (!raw.settings.theme) raw.settings.theme = 'auto';
     if (raw.settings.sortByScore === undefined) raw.settings.sortByScore = false;
   }
 
+  // v2 -> v3: drop unused scoreDirection, track announced winner
+  if (raw.version === undefined || raw.version < 3) {
+    if (raw.settings) delete raw.settings.scoreDirection;
+    if (raw.winnerAnnounced === undefined) raw.winnerAnnounced = null;
+  }
+
+  raw.version = STATE_VERSION;
   return raw;
 }
 
 let state = defaultState();
-const subscribers = [];
 
 export function getState() {
   return state;
@@ -79,24 +91,42 @@ export function setState(updater) {
     state = { ...state, ...updater };
   }
   saveState();
-  notify();
 }
 
+/**
+ * Loads the persisted game. If the stored data can't be parsed or validated,
+ * it is copied to a backup key instead of being silently discarded.
+ * @returns {{ state: object, recovered: boolean }}
+ */
 export function loadState() {
+  let raw = null;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      let parsed = JSON.parse(raw);
-      parsed = migrateState(parsed);
-      const valid = validateState(parsed);
-      if (valid) {
-        state = { ...defaultState(), ...valid, settings: { ...defaultState().settings, ...valid.settings } };
-      }
-    }
+    raw = localStorage.getItem(STORAGE_KEY);
   } catch (e) {
-    console.error('Failed to load game state:', e);
+    console.error('Failed to read game state:', e);
+    return { state, recovered: false };
   }
-  return state;
+  if (!raw) return { state, recovered: false };
+
+  let valid = null;
+  try {
+    valid = validateState(migrateState(JSON.parse(raw)));
+  } catch (e) {
+    console.error('Failed to parse game state:', e);
+  }
+
+  if (valid) {
+    const defaults = defaultState();
+    state = { ...defaults, ...valid, settings: { ...defaults.settings, ...valid.settings } };
+    return { state, recovered: false };
+  }
+
+  try {
+    localStorage.setItem(BACKUP_KEY, raw);
+  } catch (e) {
+    console.error('Failed to back up corrupted state:', e);
+  }
+  return { state, recovered: true };
 }
 
 export function saveState() {
@@ -105,18 +135,6 @@ export function saveState() {
   } catch (e) {
     console.error('Failed to save game state:', e);
   }
-}
-
-export function subscribe(fn) {
-  subscribers.push(fn);
-  return () => {
-    const idx = subscribers.indexOf(fn);
-    if (idx >= 0) subscribers.splice(idx, 1);
-  };
-}
-
-function notify() {
-  subscribers.forEach((fn) => fn(state));
 }
 
 // --- Scoring Logic (pure functions) ---
@@ -133,13 +151,14 @@ export function calculateStandardRound(players, winnerId, tileData, manualInputs
       } else {
         val = calculateTileTotal(tileData[p.id] || {});
       }
-      const points = -Math.abs(val);
-      changes.push({ playerId: p.id, points });
+      changes.push({ playerId: p.id, points: val ? -Math.abs(val) : 0 }); // avoid -0
       winnerSum += Math.abs(val);
     }
   });
 
-  changes.push({ playerId: winnerId, points: winnerSum });
+  if (winnerId !== null && winnerId !== undefined) {
+    changes.push({ playerId: winnerId, points: winnerSum });
+  }
   return changes;
 }
 
@@ -177,21 +196,35 @@ export function recalculateScores(players, rounds) {
   return players;
 }
 
+/** Returns a new array sorted from highest to lowest score. */
+export function sortPlayersByScore(players) {
+  return [...players].sort((a, b) => b.score - a.score);
+}
+
+/**
+ * Returns the player who reached the target score, or null. If several
+ * players cross it in the same round, the one with the highest score wins.
+ */
 export function findWinner(players, settings) {
   if (!settings.targetScore) return null;
-  if (settings.scoreDirection === 'lowest') {
-    return players.find((p) => p.score <= -Math.abs(settings.targetScore)) || null;
-  }
-  return players.find((p) => p.score >= settings.targetScore) || null;
+  const qualifying = players.filter((p) => p.score >= settings.targetScore);
+  return qualifying.length ? sortPlayersByScore(qualifying)[0] : null;
+}
+
+/** Ids of the players who won a round (highest positive delta; ties all count). */
+export function getRoundWinnerIds(round) {
+  if (!round.changes.length) return [];
+  const maxPts = Math.max(...round.changes.map((c) => c.points));
+  if (maxPts <= 0) return [];
+  return round.changes.filter((c) => c.points === maxPts).map((c) => c.playerId);
 }
 
 export function getPlayerStats(player, rounds) {
-  const playerRounds = rounds.map((r) => r.changes.find((c) => c.playerId === player.id));
-  const scores = playerRounds.filter(Boolean).map((c) => c.points);
-  const wins = rounds.filter((r) => {
-    const maxPts = Math.max(...r.changes.map((c) => c.points));
-    return r.changes.some((c) => c.playerId === player.id && c.points === maxPts && c.points > 0);
-  }).length;
+  const scores = rounds
+    .map((r) => r.changes.find((c) => c.playerId === player.id))
+    .filter(Boolean)
+    .map((c) => c.points);
+  const wins = rounds.filter((r) => getRoundWinnerIds(r).includes(player.id)).length;
 
   return {
     roundsWon: wins,
@@ -200,14 +233,69 @@ export function getPlayerStats(player, rounds) {
   };
 }
 
-export function getSortedPlayers(players, rounds, sortByScore, scoreDirection) {
-  const sorted = [...players];
-  if (sortByScore && rounds.length > 0) {
-    sorted.sort((a, b) =>
-      scoreDirection === 'lowest' ? a.score - b.score : b.score - a.score
-    );
+/**
+ * Whole-game summary used by the winner screen.
+ * @returns {{ totalRounds: number, bestRound: {player, points}|null, mostWins: {player, count}|null }}
+ */
+export function getGameSummary(players, rounds) {
+  let bestRound = null;
+  rounds.forEach((r) => {
+    r.changes.forEach((c) => {
+      const player = players.find((p) => p.id === c.playerId);
+      if (player && c.points > 0 && (!bestRound || c.points > bestRound.points)) {
+        bestRound = { player, points: c.points };
+      }
+    });
+  });
+
+  let mostWins = null;
+  players.forEach((player) => {
+    const count = getPlayerStats(player, rounds).roundsWon;
+    if (count > 0 && (!mostWins || count > mostWins.count)) mostWins = { player, count };
+  });
+
+  return { totalRounds: rounds.length, bestRound, mostWins };
+}
+
+export function getSortedPlayers(players, rounds, sortByScore) {
+  return sortByScore && rounds.length > 0 ? sortPlayersByScore(players) : [...players];
+}
+
+/** 1-based rank of each player by score (tied scores share a rank); 0 before any round. */
+export function getPositions(players, rounds) {
+  const positions = {};
+  const scores = sortPlayersByScore(players).map((p) => p.score);
+  players.forEach((p) => {
+    positions[p.id] = rounds.length > 0 ? scores.indexOf(p.score) + 1 : 0;
+  });
+  return positions;
+}
+
+/**
+ * Validates the setup form before starting a game.
+ * @returns {{ ok: true, targetScore: number|null, players: object[] } | { ok: false, error: string }}
+ *   `error` is an i18n key.
+ */
+export function validateGameSetup(players, targetRaw) {
+  const rawTarget = String(targetRaw ?? '').trim();
+  let targetScore = null;
+  if (rawTarget !== '') {
+    const n = Number(rawTarget);
+    if (!Number.isInteger(n) || n <= 0) return { ok: false, error: 'dialog.invalidTarget' };
+    targetScore = n;
   }
-  return sorted;
+
+  const trimmed = players.map((p) => ({ ...p, name: p.name.trim() }));
+  if (trimmed.some((p) => p.name === '')) return { ok: false, error: 'dialog.emptyName' };
+
+  const seen = new Set();
+  for (const p of trimmed) {
+    const key = p.name.toLocaleLowerCase();
+    if (seen.has(key)) return { ok: false, error: 'dialog.duplicateName' };
+    seen.add(key);
+  }
+
+  return { ok: true, targetScore, players: trimmed };
 }
 
 // --- Archive ---
@@ -215,12 +303,20 @@ export function getSortedPlayers(players, rounds, sortByScore, scoreDirection) {
 export function getArchive() {
   try {
     const raw = localStorage.getItem(ARCHIVE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    const parsed = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (g) => g && Array.isArray(g.players) && Array.isArray(g.rounds) && g.settings
+    );
   } catch {
     return [];
   }
 }
 
+/**
+ * Saves the current game at the top of the archive.
+ * @returns {{ trimmed: number }} how many old games were dropped to respect the limit
+ */
 export function archiveCurrentGame() {
   const archive = getArchive();
   archive.unshift({
@@ -230,13 +326,14 @@ export function archiveCurrentGame() {
     rounds: [...state.rounds],
     settings: { ...state.settings },
   });
-  // Keep last 20 games
-  if (archive.length > 20) archive.length = 20;
+  const trimmed = Math.max(0, archive.length - ARCHIVE_LIMIT);
+  if (trimmed) archive.length = ARCHIVE_LIMIT;
   try {
     localStorage.setItem(ARCHIVE_KEY, JSON.stringify(archive));
   } catch (e) {
     console.error('Failed to save archive:', e);
   }
+  return { trimmed };
 }
 
 export function deleteArchiveEntry(id) {
@@ -248,14 +345,21 @@ export function deleteArchiveEntry(id) {
   }
 }
 
+/**
+ * Players and game rules of the most recent archived game. Only game-related
+ * settings are returned so app preferences (language, theme...) are untouched.
+ */
 export function getLastGameConfig() {
   const archive = getArchive();
   if (archive.length === 0) return null;
   const last = archive[0];
   return {
     players: last.players.map((p) => ({ ...p, score: 0 })),
-    settings: { ...last.settings },
+    settings: {
+      rule: last.settings.rule === 'simple' ? 'simple' : 'standard',
+      targetScore: last.settings.targetScore || null,
+    },
   };
 }
 
-export { PLAYER_COLORS, STATE_VERSION };
+export { PLAYER_COLORS, STATE_VERSION, ARCHIVE_LIMIT, MIN_PLAYERS, MAX_PLAYERS };

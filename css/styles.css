@@ -25,22 +25,23 @@
 
 /* --- 1. Theme Variables --- */
 
-[data-theme="dark"], :root {
+[data-theme='dark'],
+:root {
   --bg: #121212;
-  --bg-elevated: #1E1E1E;
+  --bg-elevated: #1e1e1e;
   --bg-modal: #242424;
-  --bg-input: #2C2C2C;
-  --primary: #4A90E2;
-  --primary-dim: #357ABD;
+  --bg-input: #2c2c2c;
+  --primary: #4a90e2;
+  --primary-dim: #357abd;
   --primary-alpha: rgba(74, 144, 226, 0.15);
-  --accent: #FFD700;
+  --accent: #ffd700;
   --accent-alpha: rgba(255, 215, 0, 0.15);
-  --danger: #CF6679;
+  --danger: #cf6679;
   --danger-alpha: rgba(207, 102, 121, 0.2);
   --success: #2ecc71;
   --success-alpha: rgba(46, 204, 113, 0.2);
-  --text: #FFFFFF;
-  --text-sec: #B0B3B8;
+  --text: #ffffff;
+  --text-sec: #b0b3b8;
   --text-muted: #666;
   --border: #333333;
   --shadow: rgba(0, 0, 0, 0.3);
@@ -51,47 +52,47 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-[data-theme="light"] {
-  --bg: #F5F5F5;
-  --bg-elevated: #FFFFFF;
-  --bg-modal: #FFFFFF;
-  --bg-input: #F0F0F0;
-  --primary: #3B7DD8;
-  --primary-dim: #2E6ABD;
+[data-theme='light'] {
+  --bg: #f5f5f5;
+  --bg-elevated: #ffffff;
+  --bg-modal: #ffffff;
+  --bg-input: #f0f0f0;
+  --primary: #3b7dd8;
+  --primary-dim: #2e6abd;
   --primary-alpha: rgba(59, 125, 216, 0.1);
-  --accent: #D4A800;
+  --accent: #d4a800;
   --accent-alpha: rgba(212, 168, 0, 0.12);
-  --danger: #D32F2F;
+  --danger: #d32f2f;
   --danger-alpha: rgba(211, 47, 47, 0.1);
   --success: #27ae60;
   --success-alpha: rgba(39, 174, 96, 0.1);
-  --text: #1A1A1A;
+  --text: #1a1a1a;
   --text-sec: #666666;
   --text-muted: #999;
-  --border: #E0E0E0;
+  --border: #e0e0e0;
   --shadow: rgba(0, 0, 0, 0.08);
   --overlay: rgba(0, 0, 0, 0.5);
 }
 
 @media (prefers-color-scheme: light) {
-  [data-theme="auto"] {
-    --bg: #F5F5F5;
-    --bg-elevated: #FFFFFF;
-    --bg-modal: #FFFFFF;
-    --bg-input: #F0F0F0;
-    --primary: #3B7DD8;
-    --primary-dim: #2E6ABD;
+  [data-theme='auto'] {
+    --bg: #f5f5f5;
+    --bg-elevated: #ffffff;
+    --bg-modal: #ffffff;
+    --bg-input: #f0f0f0;
+    --primary: #3b7dd8;
+    --primary-dim: #2e6abd;
     --primary-alpha: rgba(59, 125, 216, 0.1);
-    --accent: #D4A800;
+    --accent: #d4a800;
     --accent-alpha: rgba(212, 168, 0, 0.12);
-    --danger: #D32F2F;
+    --danger: #d32f2f;
     --danger-alpha: rgba(211, 47, 47, 0.1);
     --success: #27ae60;
     --success-alpha: rgba(39, 174, 96, 0.1);
-    --text: #1A1A1A;
+    --text: #1a1a1a;
     --text-sec: #666666;
     --text-muted: #999;
-    --border: #E0E0E0;
+    --border: #e0e0e0;
     --shadow: rgba(0, 0, 0, 0.08);
     --overlay: rgba(0, 0, 0, 0.5);
   }
@@ -106,7 +107,8 @@
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Roboto", "Segoe UI", "Helvetica Neue", sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Roboto', 'Segoe UI', 'Helvetica Neue', sans-serif;
   background-color: var(--bg);
   color: var(--text);
   height: 100vh;
@@ -234,8 +236,8 @@ body {
   letter-spacing: 0.5px;
 }
 
-input[type="text"],
-input[type="number"] {
+input[type='text'],
+input[type='number'] {
   width: 100%;
   background: var(--bg-input);
   border: 1px solid var(--border);
@@ -325,7 +327,9 @@ input:focus {
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s, transform 0.1s;
+  transition:
+    background 0.15s,
+    transform 0.1s;
   width: 100%;
   text-align: center;
 }
@@ -437,7 +441,9 @@ input:focus {
   position: relative;
   border: 1px solid transparent;
   box-shadow: 0 1px 3px var(--shadow);
-  transition: border-color 0.3s, box-shadow 0.3s;
+  transition:
+    border-color 0.3s,
+    box-shadow 0.3s;
 }
 
 .score-card.leader {
@@ -462,12 +468,12 @@ input:focus {
 }
 
 .pos-2 {
-  background: #C0C0C0;
+  background: #c0c0c0;
   color: #000;
 }
 
 .pos-3 {
-  background: #CD7F32;
+  background: #cd7f32;
   color: #fff;
 }
 
@@ -748,7 +754,9 @@ input:focus {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.1s, background 0.1s;
+  transition:
+    transform 0.1s,
+    background 0.1s;
   -webkit-user-select: none;
   user-select: none;
 }
@@ -985,14 +993,46 @@ input:focus {
   animation: confettiFall 3s linear infinite;
 }
 
-.confetti:nth-child(1) { left: 10%; background: #f44336; animation-delay: 0s; }
-.confetti:nth-child(2) { left: 25%; background: #e91e63; animation-delay: 0.2s; }
-.confetti:nth-child(3) { left: 40%; background: #9c27b0; animation-delay: 0.4s; }
-.confetti:nth-child(4) { left: 55%; background: #2196f3; animation-delay: 0.6s; }
-.confetti:nth-child(5) { left: 70%; background: #4caf50; animation-delay: 0.8s; }
-.confetti:nth-child(6) { left: 85%; background: #ffeb3b; animation-delay: 1s; }
-.confetti:nth-child(7) { left: 15%; background: #ff9800; animation-delay: 1.2s; }
-.confetti:nth-child(8) { left: 60%; background: #00bcd4; animation-delay: 1.4s; }
+.confetti:nth-child(1) {
+  left: 10%;
+  background: #f44336;
+  animation-delay: 0s;
+}
+.confetti:nth-child(2) {
+  left: 25%;
+  background: #e91e63;
+  animation-delay: 0.2s;
+}
+.confetti:nth-child(3) {
+  left: 40%;
+  background: #9c27b0;
+  animation-delay: 0.4s;
+}
+.confetti:nth-child(4) {
+  left: 55%;
+  background: #2196f3;
+  animation-delay: 0.6s;
+}
+.confetti:nth-child(5) {
+  left: 70%;
+  background: #4caf50;
+  animation-delay: 0.8s;
+}
+.confetti:nth-child(6) {
+  left: 85%;
+  background: #ffeb3b;
+  animation-delay: 1s;
+}
+.confetti:nth-child(7) {
+  left: 15%;
+  background: #ff9800;
+  animation-delay: 1.2s;
+}
+.confetti:nth-child(8) {
+  left: 60%;
+  background: #00bcd4;
+  animation-delay: 1.4s;
+}
 
 /* --- 13. Chart --- */
 
@@ -1125,7 +1165,9 @@ input:focus {
   border: 1px solid var(--border);
   opacity: 0;
   transform: translateY(-12px);
-  transition: opacity 0.3s, transform 0.3s;
+  transition:
+    opacity 0.3s,
+    transform 0.3s;
   pointer-events: auto;
 }
 
@@ -1136,6 +1178,22 @@ input:focus {
 
 .toast-success {
   border-color: var(--success);
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.toast-action {
+  background: none;
+  border: none;
+  color: var(--primary);
+  font: inherit;
+  font-weight: 700;
+  padding: 4px 0;
+  cursor: pointer;
 }
 
 /* --- 17. Empty States --- */
@@ -1160,43 +1218,87 @@ input:focus {
 /* --- 18. Animations --- */
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes slideUp {
-  from { transform: translateY(100%); }
-  to { transform: translateY(0); }
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
 }
 
 @keyframes slideDown {
-  from { transform: translateY(0); opacity: 1; }
-  to { transform: translateY(100%); opacity: 0; }
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(100%);
+    opacity: 0;
+  }
 }
 
 @keyframes scaleIn {
-  from { transform: scale(0.9); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 @keyframes bounce {
-  from { transform: translateY(0); }
-  to { transform: translateY(-8px); }
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-8px);
+  }
 }
 
 @keyframes confettiFall {
-  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
-  100% { transform: translateY(400px) rotate(720deg); opacity: 0; }
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(400px) rotate(720deg);
+    opacity: 0;
+  }
 }
 
 @keyframes floatUp {
-  0% { opacity: 1; transform: translateY(0); }
-  100% { opacity: 0; transform: translateY(-24px); }
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-24px);
+  }
 }
 
 @keyframes staggerIn {
-  from { opacity: 0; transform: translateX(-8px); }
-  to { opacity: 1; transform: translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .stagger-in {
@@ -1250,7 +1352,9 @@ input:focus:not(:focus-visible) {
 /* Reduced motion */
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }

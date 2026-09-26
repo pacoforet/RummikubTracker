@@ -1,11 +1,22 @@
-export function renderChart(canvas, players, rounds) {
+/**
+ * Draws the cumulative score line chart.
+ * @param {{ noDataText?: string }} [options]
+ */
+export function renderChart(canvas, players, rounds, { noDataText = '' } = {}) {
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.getBoundingClientRect();
 
   canvas.width = rect.width * dpr;
   canvas.height = rect.height * dpr;
-  ctx.scale(dpr, dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  // Colors come from the active theme's CSS variables
+  const css = getComputedStyle(document.documentElement);
+  const cssVar = (name) => css.getPropertyValue(name).trim();
+  const gridColor = cssVar('--border');
+  const textColor = cssVar('--text-sec');
+  const zeroLineColor = cssVar('--text-muted');
 
   const w = rect.width;
   const h = rect.height;
@@ -19,7 +30,7 @@ export function renderChart(canvas, players, rounds) {
     data[p.id] = [0]; // start at 0
   });
 
-  let runningScores = {};
+  const runningScores = {};
   players.forEach((p) => (runningScores[p.id] = 0));
 
   rounds.forEach((round) => {
@@ -35,12 +46,10 @@ export function renderChart(canvas, players, rounds) {
 
   const totalPoints = rounds.length + 1; // includes starting 0
   if (totalPoints < 2) {
-    ctx.fillStyle = getComputedStyle(document.documentElement)
-      .getPropertyValue('--text-sec')
-      .trim();
+    ctx.fillStyle = textColor;
     ctx.font = '14px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('No data yet', w / 2, h / 2);
+    ctx.fillText(noDataText, w / 2, h / 2);
     return;
   }
 
@@ -58,15 +67,6 @@ export function renderChart(canvas, players, rounds) {
   const range = maxVal - minVal || 1;
   minVal -= range * 0.1;
   maxVal += range * 0.1;
-
-  const isDark =
-    document.documentElement.dataset.theme === 'dark' ||
-    (document.documentElement.dataset.theme === 'auto' &&
-      window.matchMedia('(prefers-color-scheme: dark)').matches);
-
-  const gridColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
-  const textColor = isDark ? '#B0B3B8' : '#666';
-  const zeroLineColor = isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.25)';
 
   // Draw grid
   ctx.strokeStyle = gridColor;
@@ -106,7 +106,12 @@ export function renderChart(canvas, players, rounds) {
   ctx.textAlign = 'center';
   for (let i = 0; i < totalPoints; i++) {
     const x = pad.left + (chartW / (totalPoints - 1)) * i;
-    if (i === 0 || i === totalPoints - 1 || totalPoints <= 10 || i % Math.ceil(totalPoints / 8) === 0) {
+    if (
+      i === 0 ||
+      i === totalPoints - 1 ||
+      totalPoints <= 10 ||
+      i % Math.ceil(totalPoints / 8) === 0
+    ) {
       ctx.fillText(i === 0 ? '0' : `R${i}`, x, h - pad.bottom + 20);
     }
   }
@@ -131,8 +136,7 @@ export function renderChart(canvas, players, rounds) {
 
     // Draw endpoint dot
     const lastX = pad.left + chartW;
-    const lastY =
-      pad.top + chartH * (1 - (points[points.length - 1] - minVal) / (maxVal - minVal));
+    const lastY = pad.top + chartH * (1 - (points[points.length - 1] - minVal) / (maxVal - minVal));
     ctx.fillStyle = p.color;
     ctx.beginPath();
     ctx.arc(lastX, lastY, 4, 0, Math.PI * 2);
