@@ -17,9 +17,7 @@ const translations = {
       addPlayer: '+ Añadir Jugador',
       startGame: 'Iniciar Partida',
       quickStart: 'Repetir Última Partida',
-      scoreDirection: 'Gana el que tiene...',
-      highest: 'Mayor puntuación',
-      lowest: 'Menor puntuación',
+      defaultPlayer: 'Jugador {n}',
     },
     scoreboard: {
       round: 'RONDA',
@@ -72,6 +70,7 @@ const translations = {
       title: 'Gráfico de Puntuación',
       round: 'Ronda',
       points: 'Puntos',
+      noData: 'Aún no hay datos',
     },
     archive: {
       title: 'Partidas Anteriores',
@@ -104,6 +103,9 @@ const translations = {
       deleteArchiveMsg: '¿Eliminar esta partida del historial?',
       noRoundsUndo: 'No hay rondas para deshacer.',
       selectWinner: 'Por favor, selecciona un ganador.',
+      invalidTarget: 'La puntuación objetivo debe ser un número entero mayor que 0.',
+      emptyName: 'Todos los jugadores necesitan un nombre.',
+      duplicateName: 'Hay dos jugadores con el mismo nombre.',
       confirm: 'Confirmar',
       cancel: 'Cancelar',
       ok: 'Aceptar',
@@ -116,6 +118,27 @@ const translations = {
       copied: 'Copiado al portapapeles',
       shared: 'Resultados compartidos',
       installReady: 'App lista para instalar',
+      dataRecovered: 'No se pudo cargar la partida guardada. Se ha hecho una copia de seguridad.',
+      archiveTrimmed: 'Se ha eliminado la partida más antigua del archivo (máx. {n}).',
+      updateAvailable: 'Nueva versión disponible',
+      reload: 'Recargar',
+    },
+    a11y: {
+      description: 'Lleva la puntuación de tus partidas de Rummikub',
+      chart: 'Gráfico de puntuación',
+      history: 'Historial de la partida',
+      archive: 'Partidas anteriores',
+      settings: 'Ajustes',
+      close: 'Cerrar',
+      setup: 'Configuración de la partida',
+      scoreboard: 'Marcador',
+      playerScores: 'Puntuaciones de los jugadores',
+      playerName: 'Nombre del jugador {n}',
+      removePlayer: 'Eliminar a {name}',
+      tile: 'Ficha {v}, cantidad: {n}',
+      joker: 'Comodín, cantidad: {n}',
+      deleteRound: 'Eliminar ronda {n}',
+      points: 'Puntos de {name}',
     },
   },
 
@@ -131,15 +154,13 @@ const translations = {
       standard: 'Standard',
       simple: 'Simple',
       standardDesc:
-        'The winner gets the sum of losers\' remaining tiles. Losers get negative points.',
+        "The winner gets the sum of losers' remaining tiles. Losers get negative points.",
       simpleDesc: 'Manually enter the score change (+/-) for each player.',
       players: 'Players',
       addPlayer: '+ Add Player',
       startGame: 'Start Game',
       quickStart: 'Repeat Last Game',
-      scoreDirection: 'Winner has...',
-      highest: 'Highest score',
-      lowest: 'Lowest score',
+      defaultPlayer: 'Player {n}',
     },
     scoreboard: {
       round: 'ROUND',
@@ -154,7 +175,7 @@ const translations = {
     },
     roundEntry: {
       title: 'Round Results',
-      instructionStandard: 'Select the WINNER, then mark the losers\' remaining tiles.',
+      instructionStandard: "Select the WINNER, then mark the losers' remaining tiles.",
       instructionSimple: 'Enter the points (+/-) for each player.',
       winner: 'WINNER',
       choose: 'Choose',
@@ -192,6 +213,7 @@ const translations = {
       title: 'Score Chart',
       round: 'Round',
       points: 'Points',
+      noData: 'No data yet',
     },
     archive: {
       title: 'Past Games',
@@ -224,6 +246,9 @@ const translations = {
       deleteArchiveMsg: 'Delete this game from history?',
       noRoundsUndo: 'No rounds to undo.',
       selectWinner: 'Please select a winner.',
+      invalidTarget: 'The target score must be a whole number greater than 0.',
+      emptyName: 'Every player needs a name.',
+      duplicateName: 'Two players have the same name.',
       confirm: 'Confirm',
       cancel: 'Cancel',
       ok: 'OK',
@@ -236,6 +261,27 @@ const translations = {
       copied: 'Copied to clipboard',
       shared: 'Results shared',
       installReady: 'App ready to install',
+      dataRecovered: 'The saved game could not be loaded. A backup copy was kept.',
+      archiveTrimmed: 'The oldest game was removed from the archive (max {n}).',
+      updateAvailable: 'New version available',
+      reload: 'Reload',
+    },
+    a11y: {
+      description: 'Track your Rummikub game scores',
+      chart: 'Score chart',
+      history: 'Game history',
+      archive: 'Past games',
+      settings: 'Settings',
+      close: 'Close',
+      setup: 'Game setup',
+      scoreboard: 'Scoreboard',
+      playerScores: 'Player scores',
+      playerName: 'Player {n} name',
+      removePlayer: 'Remove {name}',
+      tile: 'Tile {v}, count: {n}',
+      joker: 'Joker, count: {n}',
+      deleteRound: 'Delete round {n}',
+      points: '{name} points',
     },
   },
 };
@@ -243,14 +289,40 @@ const translations = {
 let currentLang = 'es';
 const listeners = [];
 
-export function t(key) {
+/**
+ * Translates a dotted key. `{name}` placeholders are replaced with `params`.
+ * Returns the key itself when no translation exists.
+ */
+export function t(key, params) {
   const keys = key.split('.');
   let value = translations[currentLang];
   for (const k of keys) {
     if (value == null) return key;
     value = value[k];
   }
-  return value ?? key;
+  if (value == null) return key;
+  if (params && typeof value === 'string') {
+    return value.replace(/\{(\w+)\}/g, (m, name) => (name in params ? String(params[name]) : m));
+  }
+  return value;
+}
+
+/**
+ * Applies translations to static markup: `data-i18n` sets textContent,
+ * `data-i18n-aria` sets aria-label and `data-i18n-placeholder` sets placeholder.
+ */
+export function translateDocument(root = document) {
+  root.documentElement?.setAttribute('lang', currentLang);
+  root.querySelector?.('meta[name="description"]')?.setAttribute('content', t('a11y.description'));
+  root.querySelectorAll('[data-i18n]').forEach((el) => {
+    el.textContent = t(el.dataset.i18n);
+  });
+  root.querySelectorAll('[data-i18n-aria]').forEach((el) => {
+    el.setAttribute('aria-label', t(el.dataset.i18nAria));
+  });
+  root.querySelectorAll('[data-i18n-placeholder]').forEach((el) => {
+    el.setAttribute('placeholder', t(el.dataset.i18nPlaceholder));
+  });
 }
 
 export function setLanguage(lang) {

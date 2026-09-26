@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm test
+      - name: Every JS module is precached by the service worker
+        run: |
+          missing=0
+          for f in $(git ls-files 'js/*.js' 'js/**/*.js'); do
+            grep -q "'./$f'" sw.js || { echo "::error file=sw.js::$f is not listed in ASSETS"; missing=1; }
+          done
+          exit $missing
